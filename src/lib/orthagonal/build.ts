@@ -6,6 +6,7 @@ import { bulkWrite, readFile, writeFile } from '$lib/data-io/data-io'
 import { build, parse, type WordVector } from '$lib/search/precomputed-vectors'
 import { fn } from '$lib/models/filename-codec'
 import { getOverrideFor, listOverrides } from '$lib/models/index-override'
+import relativeURL from '$lib/functions/relative-url'
 
 const IndexName = import.meta.env.VITE_SEARCH_INDEX_NAME
 
@@ -44,6 +45,18 @@ export default async function buildSearchIndex (provider: string, opts: { log?: 
     }
     overrideNum += 1
     progress(0.01 + (0.04 * (overrideNum / overridesList.length)))
+  }
+
+  // store media urls relative to the index folder, so the index works from whatever host serves it
+  // read.ts loadEntry() resolves them back to absolute urls
+  const indexFolderURL = `${import.meta.env.VITE_SEARCH_DATA}${fn`${IndexName}/${provider}`}/`
+  for (const id in searchData) {
+    for (const mediaItem of searchData[id].media) {
+      mediaItem.thumbnail = relativeURL(indexFolderURL, mediaItem.thumbnail)
+      for (const encode of mediaItem.encodes) {
+        encode.url = relativeURL(indexFolderURL, encode.url)
+      }
+    }
   }
 
   let vectorCache: Map<string, WordVector>

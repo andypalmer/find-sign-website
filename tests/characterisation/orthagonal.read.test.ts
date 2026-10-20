@@ -80,6 +80,27 @@ describe('loadEntry() / entry.load()', () => {
     expect(server.requests.map(r => [r.path.split('/').pop(), r.cache])).toEqual([['shard-0.json', 'no-store']])
   })
 
+  it('resolves media urls against the host the index was loaded from', async () => {
+    // copy the whole data tree to another host, as if served by a different machine
+    for (const [url, data] of [...server.files]) {
+      server.files.set(url.replace('http://data.test/', 'http://mirror.test/'), data)
+    }
+    const index = await loadIndex('http://mirror.test/collections/find-sign/raw/index/alpha', ['id'])
+    const cat = await index.entries[0].load()
+    expect(cat.media[0].thumbnail).toBe('http://mirror.test/collections/encoded-search-data/raw/cat-media/cat-0.webp')
+    expect(cat.media[0].encodes[0].url).toBe('http://mirror.test/collections/encoded-search-data/raw/cat-media/cat-0.mp4')
+  })
+
+  it('passes through absolute media urls from indexes built before urls were relative', async () => {
+    const url = `${IndexBase}/alpha/shard-0.json`
+    const shard = server.getJSON(url)
+    shard.entries[0].media[0].thumbnail = 'https://data.auslan.fyi/collections/encoded-search-data/raw/cat-media/cat-0.webp'
+    server.set(url, shard)
+    const index = await loadIndex(`${IndexBase}/alpha`, ['id'])
+    const cat = await index.entries[0].load()
+    expect(cat.media[0].thumbnail).toBe('https://data.auslan.fyi/collections/encoded-search-data/raw/cat-media/cat-0.webp')
+  })
+
   it('throws OutdatedError when the shard is from a different build', async () => {
     const index = await loadIndex(`${IndexBase}/alpha`, ['id'])
     const url = `${IndexBase}/alpha/shard-0.json`

@@ -122,6 +122,14 @@ export async function loadEntry (index: LoadedOrthagonalIndex, number: number): 
   const response = await fetch(`${index.url}/shard-${shardNumber}.json`, { cache: 'no-store' })
   const json: OrthagonalColumnData = await response.json()
   if (json.buildID !== index.meta.buildID) throw new OutdatedError('Entry buildID unsyncronized, reload', index.url)
-  const entry = json.entries[entryNumber]
+  const entry: EncodedSearchDataEntry = json.entries[entryNumber]
+  // media urls are stored relative to the index folder (older builds stored absolute urls, which pass through)
+  const indexFolderURL = `${index.url}/`
+  for (const mediaItem of entry.media || []) {
+    mediaItem.thumbnail = (new URL(mediaItem.thumbnail, indexFolderURL)).toString()
+    for (const encode of mediaItem.encodes || []) {
+      encode.url = (new URL(encode.url, indexFolderURL)).toString()
+    }
+  }
   return entry
 }

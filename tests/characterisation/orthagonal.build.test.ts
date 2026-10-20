@@ -4,7 +4,7 @@ import '../helpers/test-env'
 import { DataBase, VectorLibraryBase, writeKeyPair } from '../helpers/test-env'
 import { expect, describe, it, beforeEach, vi } from 'vitest'
 import { FakeDataServer } from '../helpers/fake-data-server'
-import { IndexBase, publishSearchData, publishVectorLibrary } from '../helpers/fixtures'
+import { IndexBase, alphaSearchData as publishedAlpha, publishSearchData, publishVectorLibrary } from '../helpers/fixtures'
 import buildSearchIndex from '../../src/lib/orthagonal/build'
 import { parse as parseVectors } from '../../src/lib/search/precomputed-vectors'
 import { decodeHex, sign_open } from 'tweetnacl-ts'
@@ -61,6 +61,22 @@ describe('buildSearchIndex()', () => {
     expect(server.getJSON(`${IndexBase}/alpha/tags.json`).entries[0]).toEqual(['override'])
     // unpublished entries are removed BEFORE overrides apply, so an override cannot republish them
     expect(server.getJSON(`${IndexBase}/alpha/id.json`).entries).not.toContain('hidden')
+  })
+
+  it('stores media urls relative to the index folder, leaving other origins and links absolute', async () => {
+    const data = publishedAlpha()
+    data.dog.media[0].thumbnail = 'https://cdn.test/dog.webp'
+    publishSearchData(server, { alpha: data } as any)
+    await buildSearchIndex('alpha', quiet)
+    const [cat, dog] = server.getJSON(`${IndexBase}/alpha/shard-0.json`).entries
+    expect(cat.media[0].thumbnail).toBe('../../../../encoded-search-data/raw/cat-media/cat-0.webp')
+    expect(cat.media[0].encodes.map(x => x.url)).toEqual([
+      '../../../../encoded-search-data/raw/cat-media/cat-0.mp4',
+      '../../../../encoded-search-data/raw/cat-media/cat-0.webm',
+    ])
+    expect(dog.media[0].thumbnail).toBe('https://cdn.test/dog.webp')
+    expect(cat.link).toBe('https://alpha.test/cat')
+    expect(cat.media[0].source.url).toBe('https://source.test/cat.mp4')
   })
 
   it('rebuilds global-vectors.lps from every configured index, tolerating indexes that do not exist yet', async () => {
