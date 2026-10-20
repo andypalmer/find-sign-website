@@ -1,8 +1,8 @@
 <script lang=ts>
   import type { PageData } from './$types'
-  import ProgressLogViewer from '$lib/progress/ProgressLogViewer.svelte'
-  import { fn } from '$lib/models/filename-codec'
-  import delay from '$lib/functions/delay'
+  import ProgressLogViewer from '#lib/progress/ProgressLogViewer.svelte'
+  import { fn } from '#lib/models/filename-codec.ts'
+  import delay from '#lib/functions/delay.ts'
 
   export let data: PageData
 

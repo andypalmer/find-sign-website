@@ -1,6 +1,6 @@
-import { base } from '$app/paths'
-import { encodeFilename } from '$lib/models/filename-codec'
-import { getSearchLibrary } from '$lib/search/search'
+import { resolve } from '$app/paths'
+import { encodeFilename } from '#lib/models/filename-codec.ts'
+import { getSearchLibrary } from '#lib/search/search.ts'
 
 export const prerender = false
 
@@ -18,7 +18,7 @@ export async function getUpdatesFeed ({ page = 0, length = 30, url, extended = f
   const version = 'https://jsonfeed.org/version/1.1'
 
   const title = 'Sign Language Updates'
-  const home_page_url = (new URL(base, url)).toString()
+  const home_page_url = (new URL(resolve(''), url)).toString()
   const feed_url = (new URL('?page=0', url)).toString()
   const next_url = updates.length ? (new URL(`?page=${page + 1}`, url)).toString() : null
 

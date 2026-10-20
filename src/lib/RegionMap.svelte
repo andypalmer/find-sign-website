@@ -3,7 +3,7 @@
   import { createEventDispatcher } from 'svelte'
 
   const regions = ['wa', 'nt', 'sa', 'qld', 'nsw', 'vic', 'tas']
-  import url from '$lib/assets/auslan-map.svg'
+  import url from '#lib/assets/auslan-map.svg'
   export let tags = []
   export let width = '100%'
   export let height = '100%'

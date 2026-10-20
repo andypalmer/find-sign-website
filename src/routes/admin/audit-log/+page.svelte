@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { AuditLogEntry } from "$lib/models/audit-log"
-  import { humane } from "$lib/functions/date"
-  import MainBlock from "$lib/MainBlock.svelte"
-  import Paginator from "$lib/Paginator.svelte"
-  import { encodeFilename } from "$lib/models/filename-codec"
+  import type { AuditLogEntry } from "#lib/models/audit-log.ts"
+  import { humane } from "#lib/functions/date.ts"
+  import MainBlock from "#lib/MainBlock.svelte"
+  import Paginator from "#lib/Paginator.svelte"
+  import { encodeFilename } from "#lib/models/filename-codec.ts"
   import type { PageData } from "./$types"
 
   export let data: PageData

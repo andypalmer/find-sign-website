@@ -63,7 +63,7 @@ describe('analytics page load', () => {
   it('throws a 500 for an invalid topic', async () => {
     const thrown = await Promise.resolve().then(() => load(event('nope'))).catch(err => err)
     expect(isHttpError(thrown, 500)).toBe(true)
-    expect(thrown.body).toEqual({ message: 'invalid topic' })
+    expect(thrown.body).toEqual({ status: 500, message: 'invalid topic' })
     expect(readAnalyticsYear).not.toHaveBeenCalled()
   })
 })

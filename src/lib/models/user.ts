@@ -1,6 +1,6 @@
-import { readFile, writeFile, deletePath, listFilenames } from '$lib/data-io/data-io'
-import { bytesToString } from '$lib/functions/string-encode'
-import type { PasskeyAuthenticator } from '$lib/passkey/endpoint'
+import { readFile, writeFile, deletePath, listFilenames } from '#lib/data-io/data-io.ts'
+import { bytesToString } from '#lib/functions/string-encode.ts'
+import type { PasskeyAuthenticator } from '#lib/passkey/endpoint.ts'
 
 export type UserEntitlement = 'everything' | 'edit-index' | 'edit-users'
 export type Username = string

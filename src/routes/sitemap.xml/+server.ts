@@ -1,5 +1,5 @@
-import { fn } from '$lib/models/filename-codec'
-import { getSearchLibrary, availableIndexes } from '$lib/search/search'
+import { fn } from '#lib/models/filename-codec.ts'
+import { getSearchLibrary, availableIndexes } from '#lib/search/search.ts'
 
 const staticPages = [
   '/about',

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types'
-  import SearchEntryViewer from '$lib/admin/ui/SearchEntryViewer.svelte'
+  import SearchEntryViewer from '#lib/admin/ui/SearchEntryViewer.svelte'
 
   export let data: PageData
   $: ({ provider, id, entry } = data)

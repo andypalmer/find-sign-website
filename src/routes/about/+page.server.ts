@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types'
-import { immediateResponseCache } from '$lib/functions/cache'
-import { getSearchLibrary } from '$lib/search/search'
+import { immediateResponseCache } from '#lib/functions/cache.ts'
+import { getSearchLibrary } from '#lib/search/search.ts'
 
 export const load: PageServerLoad = immediateResponseCache(async () => {
   const tagAccumulator = {}

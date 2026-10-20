@@ -1,10 +1,12 @@
 <script lang=ts>
   // import type { MediaItem } from './search/search-index'
-  import type { SearchDataEncodedMedia } from '$lib/orthagonal/types'
-  import { page } from '$app/stores'
+  import type { SearchDataEncodedMedia } from '#lib/orthagonal/types.ts'
+  import { getPageStore } from '#lib/functions/legacy-app-stores.ts'
   import { goto } from '$app/navigation'
   import { inview } from 'svelte-inview' // intersection observer
-  import { browser } from '$app/environment'
+  import { browser } from '$app/env'
+
+  const page = getPageStore()
 
   export let key: number|string = 0 // unique index of carousel, for search params state transmission
   export let medias: SearchDataEncodedMedia[] = []
@@ -45,7 +47,7 @@
     selected -= 1
     /* @ts-ignore */
     const link: HTMLAnchorElement = event.target
-    goto(link.href, { replaceState: true, noScroll: true })
+    goto(link.href, { replace: true, reset: false })
   }
 
   function nextClick (event: MouseEvent) {
@@ -53,7 +55,7 @@
     selected += 1
     /* @ts-ignore */
     const link: HTMLAnchorElement = event.target
-    goto(link.href, { replaceState: true, noScroll: true })
+    goto(link.href, { replace: true, reset: false })
   }
 </script>
 

@@ -1,7 +1,7 @@
-import { readFile, writeFile, deletePath, listFilenames } from '$lib/data-io/data-io'
-import { bytesToString } from '$lib/functions/string-encode'
-import { fn, decodeFilename } from '$lib/models/filename-codec'
-import type { SearchDataEncodedMedia } from '$lib/orthagonal/types'
+import { readFile, writeFile, deletePath, listFilenames } from '#lib/data-io/data-io.ts'
+import { bytesToString } from '#lib/functions/string-encode.ts'
+import { fn, decodeFilename } from '#lib/models/filename-codec.ts'
+import type { SearchDataEncodedMedia } from '#lib/orthagonal/types.ts'
 
 export type IndexOverride = {
   id?: string,

@@ -29,8 +29,7 @@ describe('getUpdatesFeed()', () => {
     expect(feed).toMatchObject({
       version: 'https://jsonfeed.org/version/1.1',
       title: 'Sign Language Updates',
-      // QUIRK: base is '' so home_page_url resolves to the current url, not the site root
-      home_page_url: 'http://site.test/feeds/discovery.json',
+      home_page_url: 'http://site.test/',
       feed_url: 'http://site.test/feeds/discovery.json?page=0',
       next_url: 'http://site.test/feeds/discovery.json?page=1',
     })

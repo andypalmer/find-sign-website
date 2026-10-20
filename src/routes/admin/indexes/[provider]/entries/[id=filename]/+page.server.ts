@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types'
-import { userHasPower } from '$lib/models/user'
-import { loginRedirect } from '$lib/passkey/site-auth'
-import { getSearchLibrary } from '$lib/search/search'
-import { decodeFilename } from '$lib/models/filename-codec'
+import { userHasPower } from '#lib/models/user.ts'
+import { loginRedirect } from '#lib/passkey/site-auth.ts'
+import { getSearchLibrary } from '#lib/search/search.ts'
+import { decodeFilename } from '#lib/models/filename-codec.ts'
 import { error } from '@sveltejs/kit'
 
 export const load: PageServerLoad = async ({ locals, params }) => {

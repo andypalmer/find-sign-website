@@ -1,8 +1,8 @@
-import { writeAuditLog } from '$lib/models/audit-log'
-import { decodeFilename, fn } from '$lib/models/filename-codec'
-import { getOverrideFor, setOverrideFor, deleteOverrideFor } from '$lib/models/index-override'
-import { userHasPower } from '$lib/models/user'
-import { loginRedirect } from '$lib/passkey/site-auth'
+import { writeAuditLog } from '#lib/models/audit-log.ts'
+import { decodeFilename, fn } from '#lib/models/filename-codec.ts'
+import { getOverrideFor, setOverrideFor, deleteOverrideFor } from '#lib/models/index-override.ts'
+import { userHasPower } from '#lib/models/user.ts'
+import { loginRedirect } from '#lib/passkey/site-auth.ts'
 
 export async function POST ({ locals, params, request, url }) {
   if (!locals.username) loginRedirect()

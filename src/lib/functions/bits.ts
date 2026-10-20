@@ -1,4 +1,4 @@
-import { chunkStringIterable } from '$lib/functions/iters'
+import { chunkStringIterable } from '#lib/functions/iters.ts'
 
 // encode a (positive or 0) integer to a binary string
 export function intToBits (number: number, size: number): string {

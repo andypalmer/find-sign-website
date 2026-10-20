@@ -55,5 +55,5 @@ npm run build
 PORT=4173 HOST=127.0.0.1 PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host node build
 ```
 
-The same `PROTOCOL_HEADER` / `HOST_HEADER` settings (or a fixed `ORIGIN`) apply in production
+The same `PROTOCOL_HEADER` / `HOST_HEADER` settings (or a fixed `paths.origin` in `vite.config.js`) apply in production
 behind Traefik.

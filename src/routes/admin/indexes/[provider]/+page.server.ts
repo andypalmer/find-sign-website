@@ -1,6 +1,6 @@
-import { userHasPower } from '$lib/models/user'
-import { getSearchLibrary } from '$lib/search/search'
-import { loginRedirect } from '$lib/passkey/site-auth'
+import { userHasPower } from '#lib/models/user.ts'
+import { getSearchLibrary } from '#lib/search/search.ts'
+import { loginRedirect } from '#lib/passkey/site-auth.ts'
 
 export async function load ({ locals, params }) {
   if (!locals.username) loginRedirect()

@@ -1,19 +1,21 @@
 <script lang="ts">
   import type { PageData } from "./$types"
-  import MainBlock from "$lib/MainBlock.svelte"
+  import MainBlock from "#lib/MainBlock.svelte"
   import { LayerCake, Svg } from "layercake"
-  import { times } from "$lib/functions/iters"
-	import AxisX from "$lib/charts/AxisX.svelte"
-	import AxisY from "$lib/charts/AxisY.svelte"
-	import Line from "$lib/charts/Line.svelte"
-	import Area from "$lib/charts/Area.svelte"
-	import Header from "$lib/header/Header.svelte"
-	import watchMedia from '$lib/functions/media-store'
+  import { times } from "#lib/functions/iters.ts"
+	import AxisX from "#lib/charts/AxisX.svelte"
+	import AxisY from "#lib/charts/AxisY.svelte"
+	import Line from "#lib/charts/Line.svelte"
+	import Area from "#lib/charts/Area.svelte"
+	import Header from "#lib/header/Header.svelte"
+	import watchMedia from '#lib/functions/media-store.ts'
 	import { invalidate } from "$app/navigation"
-	import { page } from "$app/stores"
-	import { browser } from "$app/environment"
+	import { getPageStore } from "#lib/functions/legacy-app-stores.ts"
+	import { browser } from "$app/env"
 
   export let data: PageData // server sent data is all in UTC zone
+
+	const page = getPageStore()
 
 	let tzOffsetHrs = (new Date()).getTimezoneOffset() / -60
 
@@ -74,12 +76,12 @@
 <MainBlock wide>
   <h1>“{data.topic}” requests in {data.year}</h1>
 
-	<p><a href="/analytics" data-sveltekit-noscroll data-sveltekit-preload-data>Back to Analytics Topics List</a></p>
+	<p><a href="/analytics" data-sveltekit-reset="false" data-sveltekit-preload-data>Back to Analytics Topics List</a></p>
 
 	<div class="year-links">
-		<a href="?year={data.year - 1}" data-sveltekit-noscroll data-sveltekit-preload-data>⋖ {data.year - 1}</a>
+		<a href="?year={data.year - 1}" data-sveltekit-reset="false" data-sveltekit-preload-data>⋖ {data.year - 1}</a>
 		<span>{data.year}</span>
-		<a href="?year={data.year + 1}" data-sveltekit-noscroll data-sveltekit-preload-data>{data.year + 1} ⋗</a>
+		<a href="?year={data.year + 1}" data-sveltekit-reset="false" data-sveltekit-preload-data>{data.year + 1} ⋗</a>
 	</div>
 
 	<p>Display Timezone: <input type="range" min="-12" max="12" step="0.5" bind:value={tzOffsetHrs}> UTC {tzOffsetHrs < 0 ? '-' : '+'} {Math.abs(tzOffsetHrs)} hours </p>

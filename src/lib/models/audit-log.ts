@@ -1,4 +1,4 @@
-import { bytesToString } from '$lib/functions/string-encode'
+import { bytesToString } from '#lib/functions/string-encode.ts'
 import { nanoid } from 'nanoid'
 import { listFilenames, readFile, writeFile } from '../data-io/data-io'
 

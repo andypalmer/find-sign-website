@@ -1,15 +1,15 @@
 import { error, json } from '@sveltejs/kit';
 import { InteractionType, InteractionResponseType, MessageComponentTypes, ButtonStyleTypes } from 'discord-interactions'
-import { search } from '$lib/search/search.js'
-import { getSearchLibrary } from '$lib/search/search.js'
-import { getRandomSigns } from '$lib/search/random.js'
+import { search } from '#lib/search/search.ts'
+import { getSearchLibrary } from '#lib/search/search.ts'
+import { getRandomSigns } from '#lib/search/random.ts'
 import { discordRequest, isValidReq } from '../_discord_request.js'
-import { times } from '$lib/functions/iters.js'
-// import { lagSwitch } from '$lib/functions/delay.js'
+import { times } from '#lib/functions/iters.ts'
+// import { lagSwitch } from '#lib/functions/delay.ts'
 import { DiscordAppID } from '../_setup.js'
-// import { sha256, arrayToHex } from '$lib/search/hash.js'
-import type { EncodedSearchDataEntry, SearchDataEncodedMedia } from '$lib/orthagonal/types.js'
-import { recordAnalytics } from '$lib/models/analytics.js'
+// import { sha256, arrayToHex } from '#lib/search/hash.js'
+import type { EncodedSearchDataEntry, SearchDataEncodedMedia } from '#lib/orthagonal/types.ts'
+import { recordAnalytics } from '#lib/models/analytics.ts'
 
 const MaxPages = 3
 

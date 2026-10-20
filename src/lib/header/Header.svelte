@@ -1,5 +1,5 @@
 <script lang="ts">
-  import logo from '$lib/assets/find-sign-logo.svg'
+  import logo from '#lib/assets/find-sign-logo.svg'
 
 	import { slide } from 'svelte/transition'
 	import SearchInput from './SearchInput.svelte'

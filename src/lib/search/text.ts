@@ -1,6 +1,6 @@
-import { distanceSquared } from '$lib/functions/vector-utilities'
-import '$lib/functions/array-at-polyfill'
-import type { LoadedOrthagonalEntry } from '$lib/orthagonal/read'
+import { distanceSquared } from '#lib/functions/vector-utilities.ts'
+import '#lib/functions/array-at-polyfill.ts'
+import type { LoadedOrthagonalEntry } from '#lib/orthagonal/read.ts'
 import type { WordVector } from './precomputed-vectors'
 
 export type QueryAndNode = {

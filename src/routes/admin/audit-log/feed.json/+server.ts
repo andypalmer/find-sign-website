@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { listAuditLogs, readAuditLog } from "$lib/models/audit-log"
+import { listAuditLogs, readAuditLog } from "#lib/models/audit-log.ts"
 import type { RequestHandler } from "@sveltejs/kit"
 
 const FeedEntries = 50

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { humane } from "$lib/functions/date"
-  import MainBlock from "$lib/MainBlock.svelte"
-  import { encodeFilename } from "$lib/models/filename-codec"
+  import { humane } from "#lib/functions/date.ts"
+  import MainBlock from "#lib/MainBlock.svelte"
+  import { encodeFilename } from "#lib/models/filename-codec.ts"
   import type { PageData } from "./$types"
 
   export let data: PageData

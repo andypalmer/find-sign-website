@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { IndexOverride } from '$lib/models/index-override'
-  import type { EncodedSearchDataEntry } from '$lib/orthagonal/types'
+  import type { IndexOverride } from '#lib/models/index-override.ts'
+  import type { EncodedSearchDataEntry } from '#lib/orthagonal/types.ts'
   import { createEventDispatcher } from 'svelte'
 
   import OverrideField from './OverrideField.svelte'

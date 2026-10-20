@@ -4,7 +4,7 @@
 // for information about these interfaces
 declare namespace App {
 	interface Locals {
-		username?: import("$lib/models/user").Username;
+		username?: import("#lib/models/user.ts").Username;
 	}
 
 	// interface Platform {}

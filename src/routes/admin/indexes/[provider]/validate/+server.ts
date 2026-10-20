@@ -1,9 +1,9 @@
 import { json } from '@sveltejs/kit'
-import { createProgressLog, nextUpdateResponse } from '$lib/progress/progress-log'
-import { loginRedirect } from '$lib/passkey/site-auth'
+import { createProgressLog, nextUpdateResponse } from '#lib/progress/progress-log.ts'
+import { loginRedirect } from '#lib/passkey/site-auth.ts'
 import type { RequestHandler } from './$types'
-import { readEncodedSearchData } from '$lib/orthagonal/write'
-import { validateEncodedSearchDataEntry } from '$lib/orthagonal/types'
+import { readEncodedSearchData } from '#lib/orthagonal/write.ts'
+import { validateEncodedSearchDataEntry } from '#lib/orthagonal/types.ts'
 
 /** long polling endpoint for progress and log streaming from the post endpoints long running output */
 export const GET: RequestHandler = async (event) => {

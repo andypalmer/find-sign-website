@@ -1,7 +1,7 @@
 // augments search-index with rank properties, and sorts by rank
-import type { LoadedOrthagonalEntry } from '$lib/orthagonal/read'
+import type { LoadedOrthagonalEntry } from '#lib/orthagonal/read.ts'
 import type { SearchLibrary } from './search'
-import { diversity as vectorDiversity } from '$lib/functions/vector-utilities'
+import { diversity as vectorDiversity } from '#lib/functions/vector-utilities.ts'
 
 export type RankedLibrary = {
   entries: LoadedOrthagonalEntry[]

@@ -1,7 +1,7 @@
-import { build as buildVectorShard } from '$lib/search/precomputed-vectors'
+import { build as buildVectorShard } from '#lib/search/precomputed-vectors.ts'
 import type { OrthagonalColumns, EncodedSearchData, OrthagonalIndex } from './types'
 import normalizeWord from './normalize-word'
-import { chunk, times } from '$lib/functions/iters'
+import { chunk, times } from '#lib/functions/iters.ts'
 import { nanoid } from 'nanoid'
 
 /** read an encoded-search-data from a url, transforming all URLs to be absolute */

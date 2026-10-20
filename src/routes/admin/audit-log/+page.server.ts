@@ -1,4 +1,4 @@
-import { listAuditLogs, readAuditLog } from "$lib/models/audit-log"
+import { listAuditLogs, readAuditLog } from "#lib/models/audit-log.ts"
 import type { PageServerLoad } from "./$types"
 
 const EntriesPerPage = 50

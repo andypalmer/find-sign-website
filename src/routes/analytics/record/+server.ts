@@ -1,6 +1,6 @@
 import type { RequestHandler } from "./$types"
 import { error, json } from "@sveltejs/kit"
-import { isValidAnalyticsTopic, recordAnalytics } from "$lib/models/analytics"
+import { isValidAnalyticsTopic, recordAnalytics } from "#lib/models/analytics.ts"
 
 export const GET: RequestHandler = async ({ url }) => {
   const topic = url.searchParams.get('topic')

@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import { tweened } from 'svelte/motion'
   import { circOut } from 'svelte/easing'
-  import timeStore from '$lib/functions/raf-store'
+  import timeStore from '#lib/functions/raf-store.ts'
 
   export let dots = 32
   export let interval = 1.0

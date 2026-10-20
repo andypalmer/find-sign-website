@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types'
-  import OverrideEditor from '$lib/admin/ui/OverrideEditor.svelte'
+  import OverrideEditor from '#lib/admin/ui/OverrideEditor.svelte'
 
   export let data: PageData
 

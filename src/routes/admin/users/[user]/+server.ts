@@ -1,7 +1,7 @@
-import { writeAuditLog } from '$lib/models/audit-log'
-import { deleteUser, getUser, setUser, userHasPower } from '$lib/models/user'
+import { writeAuditLog } from '#lib/models/audit-log.ts'
+import { deleteUser, getUser, setUser, userHasPower } from '#lib/models/user.ts'
 import { json, redirect } from '@sveltejs/kit'
-import { loginRedirect } from '$lib/passkey/site-auth'
+import { loginRedirect } from '#lib/passkey/site-auth.ts'
 
 export async function PUT ({ locals, request, params }) {
   if (!locals.username) loginRedirect()

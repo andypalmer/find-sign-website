@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { PageData } from './$types'
-	import Header from '$lib/header/Header.svelte'
-  import MainBlock from '$lib/MainBlock.svelte'
+	import Header from '#lib/header/Header.svelte'
+  import MainBlock from '#lib/MainBlock.svelte'
 
-  import { humane as humaneTime } from '$lib/functions/date'
+  import { humane as humaneTime } from '#lib/functions/date.ts'
 
   export let data: PageData
 </script>

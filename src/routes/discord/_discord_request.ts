@@ -1,5 +1,5 @@
 import { DiscordBotToken, DiscordPublicKey } from './_setup'
-import { bytesToString, stringToBytes } from '$lib/functions/string-encode.js'
+import { bytesToString, stringToBytes } from '#lib/functions/string-encode.ts'
 import { verifyKey } from 'discord-interactions'
 import { nanoid } from 'nanoid'
 

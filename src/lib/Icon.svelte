@@ -1,5 +1,5 @@
 <script lang="ts">
-  import symbols from '$lib/assets/icomoon/symbol-defs.svg'
+  import symbols from '#lib/assets/icomoon/symbol-defs.svg'
 
   export let name: string
   export let ariaHidden = false

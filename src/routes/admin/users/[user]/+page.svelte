@@ -1,6 +1,6 @@
 <script lang=ts>
-  import type { UserAccount } from "$lib/models/user"
-  import { chunk } from "$lib/functions/iters"
+  import type { UserAccount } from "#lib/models/user.ts"
+  import { chunk } from "#lib/functions/iters.ts"
   import type { PageData } from "./$types"
 
   export let data: PageData

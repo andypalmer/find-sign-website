@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { PageData } from './$types'
-  import Header from '$lib/header/Header.svelte'
-  import HiddenEmail from '$lib/HiddenEmail.svelte'
-  import MainBlock from '$lib/MainBlock.svelte'
+  import Header from '#lib/header/Header.svelte'
+  import HiddenEmail from '#lib/HiddenEmail.svelte'
+  import MainBlock from '#lib/MainBlock.svelte'
   import { onMount } from 'svelte'
-  import clientRecordAnalytics from '$lib/models/client-record-analytics'
+  import clientRecordAnalytics from '#lib/models/client-record-analytics.ts'
 
   export let data: PageData
 

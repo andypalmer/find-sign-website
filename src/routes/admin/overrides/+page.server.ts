@@ -1,5 +1,5 @@
-import { listOverrides } from "$lib/models/index-override"
-import { loginRedirect } from '$lib/passkey/site-auth'
+import { listOverrides } from "#lib/models/index-override.ts"
+import { loginRedirect } from '#lib/passkey/site-auth.ts'
 
 export async function load ({ locals }) {
   if (!locals.username) loginRedirect()

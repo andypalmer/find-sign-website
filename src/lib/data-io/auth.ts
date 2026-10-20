@@ -1,6 +1,6 @@
 import { sign } from 'tweetnacl-ts'
-import { byteArrayToHex, hexToByteArray } from '$lib/functions/hex-encode.js'
-import { stringToBytes } from '$lib/functions/string-encode.js'
+import { byteArrayToHex, hexToByteArray } from '#lib/functions/hex-encode.ts'
+import { stringToBytes } from '#lib/functions/string-encode.ts'
 
 // create a license (temporarily valid identity document signed with secret key)
 export function createLicense (identity: string, options?: { validFrom?: Date, validTo?: Date }): string {

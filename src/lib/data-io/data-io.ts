@@ -1,5 +1,5 @@
-import { createLicense } from '$lib/data-io/auth'
-import { stringToBytes } from '$lib/functions/string-encode'
+import { createLicense } from '#lib/data-io/auth.ts'
+import { stringToBytes } from '#lib/functions/string-encode.ts'
 import { encodeBase64 } from 'tweetnacl-ts'
 const identity = import.meta.env.VITE_SEARCH_WRITE_IDENTITY
 const collectionPath = import.meta.env.VITE_SEARCH_DATA

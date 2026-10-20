@@ -1,13 +1,8 @@
-import { mathWrite, readFile, type MathOperation } from "$lib/data-io/data-io"
-import { times } from "$lib/functions/iters"
+import { mathWrite, readFile, type MathOperation } from "#lib/data-io/data-io.ts"
+import { times } from "#lib/functions/iters.ts"
 import { fn } from "./filename-codec"
-
-export type Topic = 'homepage' | 'search' | 'permalink' | 'random' | 'about' | 'technology' | 'discord/search' | 'discord/random'
-
-const AnalyticsTopics = ['homepage', 'search', 'permalink', 'random', 'about', 'technology', 'discord/search', 'discord/random']
-export function isValidAnalyticsTopic (topic: string): topic is Topic {
-  return AnalyticsTopics.includes(topic)
-}
+import { AnalyticsTopics, type Topic } from "#lib/models/analytics-topics.ts"
+export { isValidAnalyticsTopic, type Topic } from "#lib/models/analytics-topics.ts"
 
 type AnalyticJob = {
   filename: string,

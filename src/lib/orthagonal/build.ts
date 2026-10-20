@@ -1,12 +1,12 @@
 // provides the high level logic of building a search index, including global-vectors generation
 // used by the admin index rebuild command, and the /automation/build-index/[index] endpoint
 import { readEncodedSearchData, writeIndex } from './write'
-import { lookup } from '$lib/search/loaded-precomputed-vectors'
-import { bulkWrite, readFile, writeFile } from '$lib/data-io/data-io'
-import { build, parse, type WordVector } from '$lib/search/precomputed-vectors'
-import { fn } from '$lib/models/filename-codec'
-import { getOverrideFor, listOverrides } from '$lib/models/index-override'
-import relativeURL from '$lib/functions/relative-url'
+import { lookup } from '#lib/search/loaded-precomputed-vectors.ts'
+import { bulkWrite, readFile, writeFile } from '#lib/data-io/data-io.ts'
+import { build, parse, type WordVector } from '#lib/search/precomputed-vectors.ts'
+import { fn } from '#lib/models/filename-codec.ts'
+import { getOverrideFor, listOverrides } from '#lib/models/index-override.ts'
+import relativeURL from '#lib/functions/relative-url.ts'
 
 const IndexName = import.meta.env.VITE_SEARCH_INDEX_NAME
 

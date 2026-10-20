@@ -1,10 +1,12 @@
 <script lang="ts">
   import type { PageData } from './$types'
-  import Header from '$lib/header/Header.svelte'
-  import Result from '$lib/result/Result.svelte'
-  import { page } from '$app/stores'
+  import Header from '#lib/header/Header.svelte'
+  import Result from '#lib/result/Result.svelte'
+  import { getPageStore } from '#lib/functions/legacy-app-stores.ts'
   import { onMount } from 'svelte'
-  import clientRecordAnalytics from '$lib/models/client-record-analytics'
+  import clientRecordAnalytics from '#lib/models/client-record-analytics.ts'
+
+  const page = getPageStore()
 
   export let data: PageData
   $: result = data.result

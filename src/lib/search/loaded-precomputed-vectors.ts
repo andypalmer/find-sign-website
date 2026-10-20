@@ -1,6 +1,6 @@
-import type { VectorLibrary, WordVector } from '$lib/search/precomputed-vectors'
-import { open as pvOpen, lookup as pvLookup } from '$lib/search/precomputed-vectors'
-import lru from '$lib/functions/lru'
+import type { VectorLibrary, WordVector } from '#lib/search/precomputed-vectors.ts'
+import { open as pvOpen, lookup as pvLookup } from '#lib/search/precomputed-vectors.ts'
+import lru from '#lib/functions/lru.ts'
 
 let vectorLibrary: VectorLibrary = undefined
 export async function preload (): Promise<VectorLibrary> {

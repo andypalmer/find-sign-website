@@ -1,5 +1,5 @@
-import { decodeFilename } from '$lib/models/filename-codec'
-import { getSearchLibrary } from '$lib/search/search'
+import { decodeFilename } from '#lib/models/filename-codec.ts'
+import { getSearchLibrary } from '#lib/search/search.ts'
 
 export async function load ({ params }) {
   const index = decodeFilename(params.index)

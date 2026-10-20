@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types'
 import { getUpdatesFeed } from './feeds/_read-discovery-feed'
-import { immediateResponseCache } from '$lib/functions/cache'
-import readFeed from '$lib/data-io/rss'
+import { immediateResponseCache } from '#lib/functions/cache.ts'
+import readFeed from '#lib/data-io/rss.ts'
 
 export const prerender = false
 

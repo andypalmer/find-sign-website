@@ -1,7 +1,7 @@
 <script lang=ts>
   import { goto } from '$app/navigation'
-  import PasskeyForm from '$lib/passkey/PasskeyForm.svelte'
-  import usernameStore from '$lib/models/username-store'
+  import PasskeyForm from '#lib/passkey/PasskeyForm.svelte'
+  import usernameStore from '#lib/models/username-store.ts'
 
   function onAuthenticated (...args) {
     console.log('onAuthenticated', ...args)

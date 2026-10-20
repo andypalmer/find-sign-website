@@ -1,9 +1,9 @@
 // lookup word vectors in precomputed index
-import { sha256 } from '$lib/functions/hash'
-import { bytesToPrefixBits } from '$lib/functions/bits'
-import { chunkIterable } from '$lib/functions/iters'
-import { iterateLengthPrefixed } from '$lib/functions/iters'
-import { bytesToString } from '$lib/functions/string-encode'
+import { sha256 } from '#lib/functions/hash.ts'
+import { bytesToPrefixBits } from '#lib/functions/bits.ts'
+import { chunkIterable } from '#lib/functions/iters.ts'
+import { iterateLengthPrefixed } from '#lib/functions/iters.ts'
+import { bytesToString } from '#lib/functions/string-encode.ts'
 import varint from 'varint'
 
 export type VectorLibrary = {

@@ -1,6 +1,6 @@
 import type { EncodedSearchDataEntry, OrthagonalColumnData, OrthagonalIndex } from './types'
-import { parse as parseVectorPack, type WordVector } from '$lib/search/precomputed-vectors'
-import { times } from '$lib/functions/iters'
+import { parse as parseVectorPack, type WordVector } from '#lib/search/precomputed-vectors.ts'
+import { times } from '#lib/functions/iters.ts'
 
 export type LoadedOrthagonalIndex = {
   url: string,

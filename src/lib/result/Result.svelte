@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { isEncodedSearchDataEntry, type EncodedSearchDataEntry } from '$lib/orthagonal/types'
-  import watchMedia from '$lib/functions/media-store'
-  import Carousel from '$lib/result/Carousel.svelte'
-  import RegionMap from '$lib/RegionMap.svelte'
-  import Icon from '$lib/Icon.svelte'
+  import { isEncodedSearchDataEntry, type EncodedSearchDataEntry } from '#lib/orthagonal/types.ts'
+  import watchMedia from '#lib/functions/media-store.ts'
+  import Carousel from '#lib/result/Carousel.svelte'
+  import RegionMap from '#lib/RegionMap.svelte'
+  import Icon from '#lib/Icon.svelte'
 
   export let data: EncodedSearchDataEntry = undefined
   export let expand = false

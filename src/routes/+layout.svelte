@@ -1,10 +1,12 @@
 <script lang="ts">
 	import type { LayoutData } from './$types'
-	import Spinner from '$lib/Spinner.svelte'
-	import { navigating } from '$app/stores'
+	import Spinner from '#lib/Spinner.svelte'
+	import { getNavigatingStore } from '#lib/functions/legacy-app-stores.ts'
 	import '../app.css'
 
 	export let data: LayoutData
+
+	const navigating = getNavigatingStore()
 
 	const preconnectOrigin = [...new Set([
     import.meta.env.VITE_VECTOR_INDEX,

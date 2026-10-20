@@ -1,7 +1,7 @@
 import type { PageServerLoad } from "./$types"
-import { userHasPower } from "$lib/models/user"
-import { availableIndexes } from "$lib/search/search"
-import { loginRedirect } from "$lib/passkey/site-auth"
+import { userHasPower } from "#lib/models/user.ts"
+import { availableIndexes } from "#lib/search/search.ts"
+import { loginRedirect } from "#lib/passkey/site-auth.ts"
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.username) loginRedirect()

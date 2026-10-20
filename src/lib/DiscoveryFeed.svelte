@@ -1,7 +1,7 @@
 <script lang=ts>
-  import Icon from '$lib/Icon.svelte'
-  import MainBlock from '$lib/MainBlock.svelte'
-  import { humane as humaneTime } from '$lib/functions/date'
+  import Icon from '#lib/Icon.svelte'
+  import MainBlock from '#lib/MainBlock.svelte'
+  import { humane as humaneTime } from '#lib/functions/date.ts'
 
   export let feed = undefined
 

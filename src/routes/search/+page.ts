@@ -1,8 +1,8 @@
 import type { PageLoad } from './$types'
 import { redirect } from '@sveltejs/kit'
-import { search } from '$lib/search/search'
-import clientRecordAnalytics from '$lib/models/client-record-analytics'
-import { browser } from '$app/environment'
+import { search } from '#lib/search/search.ts'
+import clientRecordAnalytics from '#lib/models/client-record-analytics.ts'
+import { browser } from '$app/env'
 
 const resultsPerPage = 10
 const maxPages = 9

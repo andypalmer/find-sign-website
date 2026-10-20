@@ -1,4 +1,4 @@
-import type { Topic } from "$lib/models/analytics"
+import type { Topic } from "#lib/models/analytics.ts"
 
 export default async function clientRecordAnalytics (topic: Topic, fetch = globalThis.fetch): Promise<void> {
   const url = `/analytics/record?${new URLSearchParams([['topic', topic]])}`

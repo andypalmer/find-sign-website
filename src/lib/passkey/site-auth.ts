@@ -1,8 +1,8 @@
 // find sign's passkey login configuration, shared by the login endpoint, the session hook, and admin routes
-import { readFile, writeFile } from "$lib/data-io/data-io"
-import { bytesToString } from "$lib/functions/string-encode"
-import createAuthEndpoint from "$lib/passkey/endpoint"
-import { validateUsername } from "$lib/models/user"
+import { readFile, writeFile } from "#lib/data-io/data-io.ts"
+import { bytesToString } from "#lib/functions/string-encode.ts"
+import createAuthEndpoint from "#lib/passkey/endpoint.ts"
+import { validateUsername } from "#lib/models/user.ts"
 import { redirect } from "@sveltejs/kit"
 
 const RelyingPartyName = 'Find Sign'

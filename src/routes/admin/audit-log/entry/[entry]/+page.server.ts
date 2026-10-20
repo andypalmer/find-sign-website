@@ -1,4 +1,4 @@
-import { readAuditLog } from "$lib/models/audit-log"
+import { readAuditLog } from "#lib/models/audit-log.ts"
 
 export async function load ({ params }) {
   const filename = params.entry

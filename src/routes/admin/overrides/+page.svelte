@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types'
-  import { fn } from '$lib/models/filename-codec'
+  import { fn } from '#lib/models/filename-codec.ts'
 
   export let data: PageData
 </script>

@@ -1,5 +1,5 @@
-import { decodeFilename } from '$lib/models/filename-codec'
-import buildSearchIndex from '$lib/orthagonal/build'
+import { decodeFilename } from '#lib/models/filename-codec.ts'
+import buildSearchIndex from '#lib/orthagonal/build.ts'
 
 const IndexName = import.meta.env.VITE_SEARCH_INDEX_NAME
 

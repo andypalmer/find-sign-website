@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { PageData } from './$types'
-  import { encodeFilename } from '$lib/models/filename-codec'
+  import { encodeFilename } from '#lib/models/filename-codec.ts'
 
-  import Header from '$lib/header/Header.svelte'
-  import MainBlock from '$lib/MainBlock.svelte'
+  import Header from '#lib/header/Header.svelte'
+  import MainBlock from '#lib/MainBlock.svelte'
 
   export let data: PageData
 </script>

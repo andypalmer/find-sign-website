@@ -1,17 +1,19 @@
 <script lang="ts">
-  import watchMedia from '$lib/functions/media-store'
+  import watchMedia from '#lib/functions/media-store.ts'
   import { createEventDispatcher, onMount } from 'svelte'
-  import { browser } from '$app/environment'
+  import { browser } from '$app/env'
   import { goto } from '$app/navigation'
   import { slide } from 'svelte/transition'
   import { quintOut } from 'svelte/easing'
-  import { navigating } from '$app/stores'
+  import { getNavigatingStore } from '#lib/functions/legacy-app-stores.ts'
 
-  import Icon from '$lib/Icon.svelte'
-  import MiniSpinner from '$lib/MiniSpinner.svelte'
-  import RegionMap from '$lib/RegionMap.svelte'
-  import regionStore from '$lib/models/region-store'
-  import MiniBlock from '$lib/MiniBlock.svelte'
+  import Icon from '#lib/Icon.svelte'
+  import MiniSpinner from '#lib/MiniSpinner.svelte'
+  import RegionMap from '#lib/RegionMap.svelte'
+  import regionStore from '#lib/models/region-store.ts'
+  import MiniBlock from '#lib/MiniBlock.svelte'
+
+  const navigating = getNavigatingStore()
 
   export let formAction = '/search'
   export let method: 'GET' | 'POST' = 'GET'

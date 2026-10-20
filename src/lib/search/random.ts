@@ -1,4 +1,4 @@
-import { getSearchLibrary, indexByURL } from '$lib/search/search'
+import { getSearchLibrary, indexByURL } from '#lib/search/search.ts'
 
 export const blockedTags = [
   'signpedia', // block signpedia-like entries, not established signs

@@ -1,5 +1,5 @@
-import { readable } from 'svelte/store'
-import { browser } from '$app/environment'
+import { readable } from 'svelte/store';
+import { browser } from '$app/env';
 
 // store with whole seconds webpage has been open for, according to the UI scheduler (requestAnimationFrame)
 // for driving continuous animations

@@ -1,4 +1,4 @@
-import { listAnalyticsTopics } from "$lib/models/analytics"
+import { listAnalyticsTopics } from "#lib/models/analytics.ts"
 import type { PageServerLoad } from "./$types"
 
 export const load: PageServerLoad = async () => {

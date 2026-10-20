@@ -1,8 +1,8 @@
-import { decodeFilename, fn } from '$lib/models/filename-codec'
-import { getOverrideFor } from '$lib/models/index-override'
-import { userHasPower } from '$lib/models/user'
-import { readEncodedSearchData } from '$lib/orthagonal/write'
-import { loginRedirect } from '$lib/passkey/site-auth'
+import { decodeFilename, fn } from '#lib/models/filename-codec.ts'
+import { getOverrideFor } from '#lib/models/index-override.ts'
+import { userHasPower } from '#lib/models/user.ts'
+import { readEncodedSearchData } from '#lib/orthagonal/write.ts'
+import { loginRedirect } from '#lib/passkey/site-auth.ts'
 
 export async function load ({ locals, params }) {
   if (!locals.username) loginRedirect()

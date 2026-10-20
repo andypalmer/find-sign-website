@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, tick } from 'svelte'
-  import progressConsumer from '$lib/progress/progress-consumer'
+  import progressConsumer from '#lib/progress/progress-consumer.ts'
 
   export let endpoint: string
   export let id: string

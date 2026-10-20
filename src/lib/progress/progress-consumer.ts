@@ -1,4 +1,4 @@
-import delay from '$lib/functions/delay'
+import delay from '#lib/functions/delay.ts'
 
 export type ProgressReport = {
   progress?: number,

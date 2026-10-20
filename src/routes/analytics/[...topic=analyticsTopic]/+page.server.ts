@@ -1,5 +1,5 @@
-import { chunk, times } from '$lib/functions/iters'
-import { isValidAnalyticsTopic, readAnalyticsYear } from '$lib/models/analytics'
+import { chunk, times } from '#lib/functions/iters.ts'
+import { isValidAnalyticsTopic, readAnalyticsYear } from '#lib/models/analytics.ts'
 import { error } from '@sveltejs/kit'
 import type { PageServerLoad } from './$types'
 

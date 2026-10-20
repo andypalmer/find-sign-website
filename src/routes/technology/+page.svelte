@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Header from '$lib/header/Header.svelte'
-  import HiddenEmail from '$lib/HiddenEmail.svelte'
-  import MainBlock from '$lib/MainBlock.svelte'
-  import clientRecordAnalytics from '$lib/models/client-record-analytics'
+  import Header from '#lib/header/Header.svelte'
+  import HiddenEmail from '#lib/HiddenEmail.svelte'
+  import MainBlock from '#lib/MainBlock.svelte'
+  import clientRecordAnalytics from '#lib/models/client-record-analytics.ts'
   import { onMount } from 'svelte'
 
   onMount(() => {

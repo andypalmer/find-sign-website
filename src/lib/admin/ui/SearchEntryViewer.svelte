@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { EncodedSearchDataEntry } from '$lib/orthagonal/types';
+import type { EncodedSearchDataEntry } from '#lib/orthagonal/types.ts';
 
   import SearchEntryField from './SearchEntryField.svelte'
 

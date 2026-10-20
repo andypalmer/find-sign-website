@@ -1,18 +1,20 @@
 <script lang="ts">
   import type { PageData } from './$types'
-  import { page as pageStore } from '$app/stores'
-  import regionStore from '$lib/models/region-store'
-  import Header from '$lib/header/Header.svelte'
-  import MainBlock from '$lib/MainBlock.svelte'
-  import Paginator from '$lib/Paginator.svelte'
-  import Result from '$lib/result/Result.svelte'
-  import watchMedia from '$lib/functions/media-store'
+  import { getPageStore } from '#lib/functions/legacy-app-stores.ts'
+  import regionStore from '#lib/models/region-store.ts'
+  import Header from '#lib/header/Header.svelte'
+  import MainBlock from '#lib/MainBlock.svelte'
+  import Paginator from '#lib/Paginator.svelte'
+  import Result from '#lib/result/Result.svelte'
+  import watchMedia from '#lib/functions/media-store.ts'
   import { closest } from 'fastest-levenshtein'
-  import { tokenize } from '$lib/search/text'
-  import { browser } from '$app/environment'
-  import { fn } from '$lib/models/filename-codec'
+  import { tokenize } from '#lib/search/text.ts'
+  import { browser } from '$app/env'
+  import { fn } from '#lib/models/filename-codec.ts'
   import { goto } from '$app/navigation'
-  import { getSearchLibrary } from '$lib/search/search'
+  import { getSearchLibrary } from '#lib/search/search.ts'
+
+  const pageStore = getPageStore()
 
   export let data: PageData
   $: ({ query, page, totalPages, results, viewport, region } = data)
@@ -62,7 +64,7 @@
       } else {
         searchParams.delete('r')
       }
-      goto(`?${searchParams}`, { noScroll: true, replaceState: true })
+      goto(`?${searchParams}`, { replace: true, reset: false })
     }
   }
 </script>

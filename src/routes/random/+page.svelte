@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Header from '$lib/header/Header.svelte'
-  import Result from '$lib/result/Result.svelte'
+  import Header from '#lib/header/Header.svelte'
+  import Result from '#lib/result/Result.svelte'
   import { goto } from '$app/navigation'
   import type { PageData } from './$types'
 
@@ -19,7 +19,7 @@
 <main>
   <h1>Random Sign Generator</h1>
 
-  <h2><a href={next} role="button" class="button" data-sveltekit-noscroll data-sveltekit-preload-data>🎲 Reroll</a></h2>
+  <h2><a href={next} role="button" class="button" data-sveltekit-reset="false" data-sveltekit-preload-data>🎲 Reroll</a></h2>
   <div class="result-box">
     {#key permalink}
       <Result data={result} {permalink} expand prefer="quality" />

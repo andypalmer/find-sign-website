@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit'
-import { writeAuditLog, type AuditExtraData } from '$lib/models/audit-log'
-import { fn } from '$lib/models/filename-codec'
-import { userHasPower } from '$lib/models/user'
-import buildSearchIndex from '$lib/orthagonal/build'
-import { createProgressLog, nextUpdateResponse } from '$lib/progress/progress-log'
-import { loginRedirect } from '$lib/passkey/site-auth'
+import { writeAuditLog, type AuditExtraData } from '#lib/models/audit-log.ts'
+import { fn } from '#lib/models/filename-codec.ts'
+import { userHasPower } from '#lib/models/user.ts'
+import buildSearchIndex from '#lib/orthagonal/build.ts'
+import { createProgressLog, nextUpdateResponse } from '#lib/progress/progress-log.ts'
+import { loginRedirect } from '#lib/passkey/site-auth.ts'
 import type { RequestHandler } from './$types'
 
 /** long polling endpoint for progress and log streaming from the post endpoints long running output */
