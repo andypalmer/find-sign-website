@@ -27,7 +27,9 @@ export async function writeIndex (searchData: EncodedSearchData, { lookupVector,
     link: { type: 'string', path: 'link.json' },
     tags: { type: 'string[]', path: 'tags.json' },
     author: { type: 'object', path: 'author.json' },
-    timestamp: { type: 'number', path: 'timestamp.json' }
+    timestamp: { type: 'number', path: 'timestamp.json' },
+    // old ids that redirect to the entry, so the site can find a sign from an old permalink
+    aliases: { type: 'string[]', path: 'aliases.json' }
   }
 
   // contents of the meta.json

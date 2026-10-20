@@ -3,9 +3,10 @@
 // entries readEncodedSearchData would have read from it, apart from the quirks the record schema doesn't
 // allow, which are fixed and reported (see Quirk).
 //
-// An entry's key becomes its record's sourceId, and its old permalink: each record gets a readable id from
-// its title, with the key kept as an alias when they differ, so old urls can still lead to it.
-import { createRecordFile, firstObservation, readableId, type Digest, type IdPolicy, type MediaItem, type ProviderInfo, type RecordContent, type RecordFile, type SignRecord } from '@andypalmer/records'
+// An entry's key becomes its record's sourceId, and its old permalink: on the first conversion each record gets
+// a readable id from its title, with the key kept as an alias when they differ, so old urls can still lead to
+// it. Later conversions (updateRecordFile) keep those ids.
+import { createRecordFile, firstObservation, readableId, reconcile, type Change, type Digest, type IdPolicy, type MediaItem, type ProviderInfo, type RecordContent, type RecordFile, type SignRecord } from '@andypalmer/records'
 import type { EncodedSearchData, EncodedSearchDataEntry, SearchDataEncodedMedia } from '@find-sign/core/orthagonal/types.ts'
 import { withSearchDataDefaults } from '../orthagonal/search-data-defaults.ts'
 
@@ -21,13 +22,19 @@ export type FromEncodedSearchDataOptions = {
   ids?: IdPolicy,
   /** told about each quirk fixed on the way in */
   onQuirk?: (quirk: Quirk) => void,
+  /** rewrites every url on the way in, such as to make it relative to where the record file will be stored.
+   * By default urls are kept as they are */
+  url?: (url: string) => string,
 }
+
+/** how entries become record content */
+type EntryConversion = { quirk: (message: string) => void, url: (url: string) => string }
 
 /** something in an encoded-search-data entry the record schema doesn't allow, and what was done about it */
 export type Quirk = { id: string, message: string }
 
 /** records for an encoded-search-data file, as stored (urls not yet resolved) */
-export async function recordFileFromEncodedSearchData (raw: Record<string, Partial<EncodedSearchDataEntry>>, { provider, seenAt, locale, digest, ids = readableId, onQuirk = () => {} }: FromEncodedSearchDataOptions): Promise<RecordFile> {
+export async function recordFileFromEncodedSearchData (raw: Record<string, Partial<EncodedSearchDataEntry>>, { provider, seenAt, locale, digest, ids = readableId, onQuirk = () => {}, url = same }: FromEncodedSearchDataOptions): Promise<RecordFile> {
   const data = withSearchDataDefaults(raw, locale)
   // the entry's timestamp is when it was added, so it's the best guess at when it was first seen
   const firstSeen = (entry: EncodedSearchDataEntry) => entry.timestamp === undefined ? seenAt : new Date(entry.timestamp).toISOString()
@@ -39,7 +46,7 @@ export async function recordFileFromEncodedSearchData (raw: Record<string, Parti
   const taken = new Set(entries.map(entry => entry.id))
   const records: SignRecord[] = []
   for (const entry of entries) {
-    const content = contentFromEntry(entry, message => onQuirk({ id: entry.id, message }))
+    const content = contentFromEntry(entry, { quirk: message => onQuirk({ id: entry.id, message }), url })
     taken.delete(entry.id)
     const id = ids(content, taken)
     taken.add(id).add(entry.id)
@@ -47,6 +54,20 @@ export async function recordFileFromEncodedSearchData (raw: Record<string, Parti
     records.push({ ...record, aliases: id === entry.id ? undefined : [entry.id], provenance: { ...record.provenance, lastSeen: seenAt } })
   }
   return createRecordFile(providerInfo(provider, data), records)
+}
+
+/** the records after another conversion of a provider's encoded-search-data: the first conversion when there
+ * are no records yet, otherwise every entry reconciled with the records from before, so signs keep their ids
+ * and new ones get readable ids. `changes` lists the record ids by what happened to them, after the first */
+export async function updateRecordFile (previous: RecordFile | undefined, raw: Record<string, Partial<EncodedSearchDataEntry>>, options: FromEncodedSearchDataOptions): Promise<{ file: RecordFile, changes?: Record<Change, string[]> }> {
+  if (!previous) return { file: await recordFileFromEncodedSearchData(raw, options) }
+  const { provider, seenAt, locale, digest, ids, onQuirk = () => {}, url = same } = options
+  const data = withSearchDataDefaults(raw, locale)
+  const contents = Object.values(data).map(entry => contentFromEntry(entry, { quirk: message => onQuirk({ id: entry.id, message }), url }))
+  const { records, changes } = await reconcile(previous.records, contents, { at: seenAt }, { digest, ids })
+  // an empty file has no provider details of its own
+  const info = Object.keys(data).length ? providerInfo(provider, data) : previous.provider
+  return { file: createRecordFile(info, records), changes }
 }
 
 export type ToEncodedSearchDataOptions = {
@@ -84,23 +105,33 @@ export function encodedSearchDataFromRecordFile (file: RecordFile, { keys, inclu
   return data
 }
 
-function contentFromEntry (entry: EncodedSearchDataEntry, quirk: (message: string) => void): RecordContent {
+function same (url: string) {
+  return url
+}
+
+function contentFromEntry (entry: EncodedSearchDataEntry, conversion: EntryConversion): RecordContent {
+  const { url } = conversion
+  const author = entry.author && {
+    ...entry.author,
+    link: entry.author.link && url(entry.author.link),
+    avatar: entry.author.avatar && url(entry.author.avatar),
+  }
   return {
     sourceId: entry.id,
     title: entry.title,
     words: entry.words,
     body: entry.body,
-    link: entry.link,
-    nav: entry.nav,
+    link: entry.link && url(entry.link),
+    nav: entry.nav?.map(([label, link]) => [label, url(link)]),
     tags: entry.tags,
-    author: entry.author,
-    media: entry.media.map(media => itemFromMedia(media, quirk)),
+    author,
+    media: entry.media.map(media => itemFromMedia(media, conversion)),
     // true is the default, so only an unpublished entry says so
     published: entry.published === false ? false : undefined,
   }
 }
 
-function itemFromMedia (media: SearchDataEncodedMedia, quirk: (message: string) => void): MediaItem {
+function itemFromMedia (media: SearchDataEncodedMedia, { quirk, url: rewrite }: EntryConversion): MediaItem {
   const { method, url, version, clipping } = media.source
   // null meant no version
   if ((version as string | null) === null) quirk(`media ${url}: version null, dropped`)
@@ -112,8 +143,12 @@ function itemFromMedia (media: SearchDataEncodedMedia, quirk: (message: string) 
   }
   return {
     type: media.type,
-    source: { method, url, version: version ?? undefined, clipping: clip },
-    encoded: media.encodes ? { thumbnail: media.thumbnail, encodedAt: new Date(media.timestamp).toISOString(), encodes: media.encodes } : undefined,
+    source: { method, url: rewrite(url), version: version ?? undefined, clipping: clip },
+    encoded: media.encodes ? {
+      thumbnail: media.thumbnail && rewrite(media.thumbnail),
+      encodedAt: new Date(media.timestamp).toISOString(),
+      encodes: media.encodes.map(encode => ({ ...encode, url: rewrite(encode.url) })),
+    } : undefined,
   }
 }
 

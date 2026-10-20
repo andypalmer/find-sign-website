@@ -7,8 +7,11 @@ import { build, parse, type WordVector } from '@find-sign/core/search/precompute
 import { fn } from '@find-sign/core/models/filename-codec.ts'
 import { getOverrideFor, listOverrides } from '#lib/models/index-override.ts'
 import relativeURL from '#lib/functions/relative-url.ts'
+import { updateRecordFile } from '#lib/records/encoded-search-data.ts'
+import { dataServerRecordStore, type RecordStore } from '#lib/records/record-store.ts'
+import type { EncodedSearchData } from '@find-sign/core/orthagonal/types.ts'
 import { SEARCH_DATA, SEARCH_INDEX_NAME, SEARCH_INDEXES } from '$app/env/public'
-import { ENCODED_SEARCH_DATAS, VECTOR_FIDELITY } from '$app/env/private'
+import { ENCODED_SEARCH_DATAS, LOCALE, VECTOR_FIDELITY } from '$app/env/private'
 
 const IndexName = SEARCH_INDEX_NAME
 
@@ -19,34 +22,62 @@ const IndexName = SEARCH_INDEX_NAME
  *
  * Fast build should not be enabled if there's a chance the vector library was updated since
  * last build.
+ *
+ * Each build also updates the provider's record file (records/<provider>.records.json, unless another `records`
+ * store is given), which keeps each sign's readable id from build to build. The index uses those ids, with old
+ * permalinks as aliases.
  */
-export default async function buildSearchIndex (provider: string, opts: { log?: (...things: any[]) => void, progress?: (n: number) => void, fast?: boolean } = {}) {
+export default async function buildSearchIndex (provider: string, opts: { log?: (...things: any[]) => void, progress?: (n: number) => void, fast?: boolean, records?: RecordStore } = {}) {
   const log = opts.log || ((...str) => console.log(...str))
   const progress = opts.progress || (() => {})
+  const records = opts.records || dataServerRecordStore(SEARCH_DATA)
 
   log(`Reading search data ${provider}...`)
-  const searchData = await readEncodedSearchData(`${ENCODED_SEARCH_DATAS}/${provider}.json`)
+  const encodedURL = `${ENCODED_SEARCH_DATAS}/${provider}.json`
+  const allData = await readEncodedSearchData(encodedURL)
   progress(0.01)
 
-  // remove unpublished entries
-  for (const id in searchData) {
-    if (searchData[id].published === false) {
-      delete searchData[id]
-    }
-  }
+  // unpublished entries aren't indexed, but stay in the records, so their ids stay reserved
+  const published = Object.keys(allData).filter(key => allData[key].published !== false)
 
   log(`Reading overrides...`)
-  const overridesList = (await listOverrides()).filter(x => x.provider === provider && x.id in searchData)
+  // overrides apply only to published entries, so an override can't republish one
+  const overridesList = (await listOverrides()).filter(x => x.provider === provider && published.includes(x.id))
   log(`Loading ${overridesList.length} override files...`)
   let overrideNum = 0
   for (const { id } of overridesList) {
     const override = await getOverrideFor(provider, id)
-    searchData[id] = {
-      ...searchData[id],
+    allData[id] = {
+      ...allData[id],
       ...override
     }
     overrideNum += 1
     progress(0.01 + (0.04 * (overrideNum / overridesList.length)))
+  }
+
+  log(`Updating records...`)
+  const recordsURL = records.url(provider)
+  const { file, changes } = await updateRecordFile(await records.read(provider), allData, {
+    provider,
+    seenAt: new Date().toISOString(),
+    locale: LOCALE,
+    // stored relative to the record file. Media sources are still relative to the encoded-search-data file
+    url: url => relativeURL(recordsURL, new URL(url, encodedURL).toString()),
+    onQuirk: ({ id, message }) => log(`  ${id}: ${message}`),
+  })
+  await records.write(file)
+  if (changes) {
+    log(`Records: ${Object.entries(changes).filter(([, ids]) => ids.length).map(([change, ids]) => `${ids.length} ${change}`).join(', ') || 'none'}`)
+  } else {
+    log(`Records: created for ${file.records.length} signs`)
+  }
+
+  // index published entries at their readable ids
+  const bySourceId = new Map(file.records.map(record => [record.sourceId, record]))
+  const searchData: EncodedSearchData = {}
+  for (const key of published) {
+    const record = bySourceId.get(key)!
+    searchData[record.id] = { ...allData[key], id: record.id, sourceId: key, aliases: record.aliases }
   }
 
   // store media urls relative to the index folder, so the index works from whatever host serves it

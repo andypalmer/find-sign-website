@@ -107,7 +107,7 @@ describe('writeIndex()', () => {
   it('produces meta, shards of 8 entries, one json per column, and a vector cache', async () => {
     const files = await build(sampleData(17))
     expect(Object.keys(files).sort()).toEqual([
-      'author.json', 'id.json', 'link.json', 'meta.json',
+      'aliases.json', 'author.json', 'id.json', 'link.json', 'meta.json',
       'shard-0.json', 'shard-1.json', 'shard-2.json',
       'tags.json', 'timestamp.json', 'title.json', 'vectors.lps', 'words.json',
     ])

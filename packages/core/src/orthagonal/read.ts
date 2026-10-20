@@ -10,6 +10,7 @@ export type LoadedOrthagonalIndex = {
 
 export type LoadedOrthagonalEntry = {
   id?: string, // entry name
+  aliases?: string[], // old ids (permalinks) that redirect to this entry
   title?: string, // entry string title
   words?: string[], // normalized searchable words
   vectors?: WordVector[], // searchable word vectors
@@ -41,7 +42,8 @@ export class OutdatedError extends Error {
   }
 }
 
-/** load the search index */
+/** load the search index. A requested column the index doesn't have (such as aliases, in indexes built
+ * before it existed) is left unset on its entries */
 export async function loadIndex (url: string, columns: string[] = [], forceReload = false, globalVectors?: { [word: string]: WordVector }): Promise<LoadedOrthagonalIndex> {
   try {
     const columnData: { [name: string]: OrthagonalColumnData } = {}
@@ -62,6 +64,7 @@ export async function loadIndex (url: string, columns: string[] = [], forceReloa
         }) : Promise.resolve(globalVectors),
       ...columns.filter(x => x !== 'vectors').map(async (name: string) => {
         const response = await fetch(`${url}/${name}.json`, loadOptions)
+        if (response.status === 404) return
         const data: OrthagonalColumnData = await response.json()
         columnData[name] = data
       })
@@ -80,6 +83,7 @@ export async function loadIndex (url: string, columns: string[] = [], forceReloa
         }
         for (const columnName of columns) {
           if (columnName === 'vectors') continue
+          if (!meta.columns[columnName]) continue
           const { isVectorIndexed, type: columnType } = meta.columns[columnName]
           const data = columnData[columnName]
           if (data.buildID !== meta.buildID) throw new OutdatedError('Column buildID doesn’t match meta buildID', url)

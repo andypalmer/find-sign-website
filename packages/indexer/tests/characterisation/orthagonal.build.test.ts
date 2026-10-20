@@ -8,6 +8,7 @@ import { IndexBase, alphaSearchData as publishedAlpha, publishSearchData, publis
 import buildSearchIndex from '../../src/orthagonal/build'
 import { parse as parseVectors } from '@find-sign/core/search/precomputed-vectors.ts'
 import { decodeHex, sign_open } from 'tweetnacl-ts'
+import { parseRecordFile } from '@andypalmer/records'
 
 let server: FakeDataServer
 const quiet = { log: () => {}, progress: () => {} }
@@ -30,7 +31,7 @@ describe('buildSearchIndex()', () => {
     expect(bulk[0].path).toBe(`${IndexBase}/alpha`)
     expect(bulk[0].body.type).toBe('bulk')
     expect(Object.keys(bulk[0].body.files).sort()).toEqual([
-      'author.json', 'id.json', 'link.json', 'meta.json', 'shard-0.json',
+      'aliases.json', 'author.json', 'id.json', 'link.json', 'meta.json', 'shard-0.json',
       'tags.json', 'timestamp.json', 'title.json', 'vectors.lps', 'words.json',
     ])
     expect(bulk[0].body.files['vectors.lps'].encoding).toBe('base64')
@@ -112,6 +113,40 @@ describe('buildSearchIndex()', () => {
     // read twice: once as the fast-build cache, once again while rebuilding global-vectors.lps
     expect(server.requestsTo(`${IndexBase}/alpha/vectors.lps`).filter(r => r.method === 'GET')).toHaveLength(2)
     expect(vectorWords(`${IndexBase}/alpha/vectors.lps`)).toEqual(['car', 'cat', 'dog'])
+  })
+
+  it('keeps a record file per provider, with urls relative to it', async () => {
+    await buildSearchIndex('alpha', quiet)
+    const file = parseRecordFile(server.getText(`${DataBase}records/alpha.records.json`)!)
+    expect(file.provider.id).toBe('alpha')
+    // unpublished entries are kept in the records, so their ids stay reserved
+    expect(file.records.map(r => r.id)).toEqual(['car', 'cat', 'dog', 'hidden'])
+    const cat = file.records.find(r => r.id === 'cat')!
+    expect(cat.media[0].source.url).toBe('https://source.test/cat.mp4')
+    const thumbnail = cat.media[0].encoded!.thumbnail!
+    expect(thumbnail).toMatch(/^\.\.\//)
+    expect(new URL(thumbnail, `${DataBase}records/alpha.records.json`).toString()).toBe('http://data.test/collections/encoded-search-data/raw/cat-media/cat-0.webp')
+  })
+
+  it('indexes readable ids, with old keys as aliases and kept as sourceId', async () => {
+    const data = publishedAlpha() as any
+    data['B8p5qc9noP5'] = { ...data.dog, title: 'Hello there, greeting', words: ['hello'] }
+    publishSearchData(server, { alpha: data })
+    await buildSearchIndex('alpha', quiet)
+    expect(server.getJSON(`${IndexBase}/alpha/id.json`).entries).toEqual(['cat', 'dog', 'car', 'hello-there'])
+    expect(server.getJSON(`${IndexBase}/alpha/aliases.json`).entries).toEqual([null, null, null, ['B8p5qc9noP5']])
+    const shard = server.getJSON(`${IndexBase}/alpha/shard-0.json`)
+    expect(shard.entries[3]).toMatchObject({ id: 'hello-there', sourceId: 'B8p5qc9noP5', aliases: ['B8p5qc9noP5'] })
+  })
+
+  it('keeps each sign\'s id on later builds, even when its title changes', async () => {
+    await buildSearchIndex('alpha', quiet)
+    server.set(`${DataBase}overrides/alpha:cat.json`, { title: 'Kitty' })
+    const logs: string[] = []
+    await buildSearchIndex('alpha', { ...quiet, log: (...x) => logs.push(x.join(' ')) })
+    expect(server.getJSON(`${IndexBase}/alpha/id.json`).entries).toEqual(['cat', 'dog', 'car'])
+    expect(server.getJSON(`${IndexBase}/alpha/title.json`).entries[0]).toBe('Kitty')
+    expect(logs).toContain('Records: 1 changed, 3 unchanged')
   })
 
   it('reports progress ending at 1 and logs "Build complete"', async () => {

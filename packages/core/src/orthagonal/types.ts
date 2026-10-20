@@ -26,6 +26,8 @@ export type EncodedSearchData = { [key: string]: EncodedSearchDataEntry }
 
 export type EncodedSearchDataEntry = {
   id: string, // id of entry, used when in array form instead of object form
+  sourceId?: string, // in an index: the entry's key in its encoded-search-data file, when its id is a readable one
+  aliases?: string[], // in an index: earlier ids (old permalinks) that redirect to this entry
   title: string, // human friendly entry title
   words: string[], // human friendly list of searchable words
   link?: string, // url to page about this sign
