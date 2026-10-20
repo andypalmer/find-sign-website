@@ -1,0 +1,109 @@
+// Characterisation tests for buildSearchIndex(): the pipeline from encoded-search-data + overrides
+// to a published orthagonal index and the shared global-vectors.lps file.
+import '../helpers/test-env'
+import { DataBase, VectorLibraryBase, writeKeyPair } from '../helpers/test-env'
+import { expect, describe, it, beforeEach, vi } from 'vitest'
+import { FakeDataServer } from '../helpers/fake-data-server'
+import { IndexBase, publishSearchData, publishVectorLibrary } from '../helpers/fixtures'
+import buildSearchIndex from '../../src/lib/orthagonal/build'
+import { parse as parseVectors } from '../../src/lib/search/precomputed-vectors'
+import { decodeHex, sign_open } from 'tweetnacl-ts'
+
+let server: FakeDataServer
+const quiet = { log: () => {}, progress: () => {} }
+
+beforeEach(async () => {
+  server = new FakeDataServer().install()
+  await publishVectorLibrary(server)
+  publishSearchData(server)
+})
+
+function vectorWords (url: string) {
+  return [...parseVectors(server.get(url))].map(x => x.word).sort()
+}
+
+describe('buildSearchIndex()', () => {
+  it('writes the whole index in one signed bulk POST to the data server', async () => {
+    await buildSearchIndex('alpha', quiet)
+    const bulk = server.requests.filter(r => r.method === 'POST')
+    expect(bulk).toHaveLength(1)
+    expect(bulk[0].path).toBe(`${IndexBase}/alpha`)
+    expect(bulk[0].body.type).toBe('bulk')
+    expect(Object.keys(bulk[0].body.files).sort()).toEqual([
+      'author.json', 'id.json', 'link.json', 'meta.json', 'shard-0.json',
+      'tags.json', 'timestamp.json', 'title.json', 'vectors.lps', 'words.json',
+    ])
+    expect(bulk[0].body.files['vectors.lps'].encoding).toBe('base64')
+    expect(bulk[0].body.files['meta.json'].encoding).toBe('string')
+
+    // every data server request carries a license signed by the write identity
+    const license = new URL(bulk[0].url).searchParams.get('license')
+    const [scheme, publicKey, signature] = license.split('-')
+    expect(scheme).toBe('ed25519')
+    expect(decodeHex(publicKey)).toEqual(writeKeyPair.publicKey)
+    expect(sign_open(decodeHex(signature), writeKeyPair.publicKey)).not.toBeNull()
+  })
+
+  it('drops published:false entries', async () => {
+    await buildSearchIndex('alpha', quiet)
+    expect(server.getJSON(`${IndexBase}/alpha/id.json`).entries).toEqual(['cat', 'dog', 'car'])
+    expect(server.getJSON(`${IndexBase}/alpha/meta.json`).entries).toBe(3)
+  })
+
+  it('shallow-merges overrides for this provider, ignoring other providers and unknown ids', async () => {
+    server.set(`${DataBase}overrides/alpha:cat.json`, { title: 'Overridden Cat', tags: ['override'] })
+    server.set(`${DataBase}overrides/alpha:missing.json`, { title: 'Nope' })
+    server.set(`${DataBase}overrides/beta:kitten.json`, { title: 'Wrong provider' })
+    server.set(`${DataBase}overrides/alpha:hidden.json`, { published: true })
+    await buildSearchIndex('alpha', quiet)
+    const titles = server.getJSON(`${IndexBase}/alpha/title.json`).entries
+    expect(titles).toEqual(['Overridden Cat', 'Dog', 'Car'])
+    expect(server.getJSON(`${IndexBase}/alpha/tags.json`).entries[0]).toEqual(['override'])
+    // unpublished entries are removed BEFORE overrides apply, so an override cannot republish them
+    expect(server.getJSON(`${IndexBase}/alpha/id.json`).entries).not.toContain('hidden')
+  })
+
+  it('rebuilds global-vectors.lps from every configured index, tolerating indexes that do not exist yet', async () => {
+    await buildSearchIndex('alpha', quiet)
+    expect(vectorWords(`${IndexBase}/global-vectors.lps`)).toEqual(['car', 'cat', 'dog'])
+    await buildSearchIndex('beta', quiet)
+    expect(vectorWords(`${IndexBase}/global-vectors.lps`)).toEqual(['car', 'cat', 'dog', 'kitten', 'red', 'truck'])
+  })
+
+  // vector library lookups go through a process-wide LRU in loaded-precomputed-vectors, so these
+  // tests load fresh module instances to observe real library traffic
+  async function freshBuild () {
+    vi.resetModules()
+    return (await import('../../src/lib/orthagonal/build')).default
+  }
+
+  it('looks every word up in the vector library on a normal build: one shard per word', async () => {
+    const build = await freshBuild()
+    await build('alpha', quiet)
+    const library = server.requestsTo(VectorLibraryBase).map(r => r.path.split('/').pop())
+    // QUIRK: preload() caches the opened library but not the in-flight promise, so each of the
+    // 3 concurrent lookup workers fetches info.json on a cold start
+    expect(library.filter(x => x === 'info.json')).toHaveLength(3)
+    expect(library.filter(x => x.endsWith('.lps'))).toHaveLength(3) // cat, dog, car
+  })
+
+  it('fast mode reuses the previous build vector cache instead of the vector library', async () => {
+    await buildSearchIndex('alpha', quiet)
+    const build = await freshBuild()
+    server.resetRequests()
+    await build('alpha', { ...quiet, fast: true })
+    expect(server.requestsTo(VectorLibraryBase)).toHaveLength(0)
+    // read twice: once as the fast-build cache, once again while rebuilding global-vectors.lps
+    expect(server.requestsTo(`${IndexBase}/alpha/vectors.lps`).filter(r => r.method === 'GET')).toHaveLength(2)
+    expect(vectorWords(`${IndexBase}/alpha/vectors.lps`)).toEqual(['car', 'cat', 'dog'])
+  })
+
+  it('reports progress ending at 1 and logs "Build complete"', async () => {
+    const logs = []
+    const progress = []
+    await buildSearchIndex('alpha', { log: (...x) => logs.push(x.join(' ')), progress: (n) => progress.push(n) })
+    expect(logs[0]).toBe('Reading search data alpha...')
+    expect(logs.at(-1)).toBe('Build complete')
+    expect(progress.at(-1)).toBe(1)
+  })
+})
