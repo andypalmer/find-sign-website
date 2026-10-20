@@ -13,13 +13,13 @@ export async function GET ({ url, params }) {
   return new Response(new ReadableStream({
     async start (controller) {
       let lastProgress = 0.0
-      const progress = (num) => {
+      const progress = (num: number) => {
         if (num > lastProgress + 0.05 || num === 1.0) {
           controller.enqueue(`Progress: ${Math.round(num * 100)}%\n`)
           lastProgress = Math.round(num * 100) / 100
         }
       }
-      const log = (...args) => {
+      const log = (...args: any[]) => {
         controller.enqueue(args.join(' ') + '\n')
       }
 

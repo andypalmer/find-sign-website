@@ -18,7 +18,7 @@ const IndexName = import.meta.env.VITE_SEARCH_INDEX_NAME
  * Fast build should not be enabled if there's a chance the vector library was updated since
  * last build.
  */
-export default async function buildSearchIndex (provider: string, opts: { log?: (...v) => void, progress?: (n: number) => void, fast?: boolean } = {}) {
+export default async function buildSearchIndex (provider: string, opts: { log?: (...things: any[]) => void, progress?: (n: number) => void, fast?: boolean } = {}) {
   const log = opts.log || ((...str) => console.log(...str))
   const progress = opts.progress || (() => {})
 
@@ -85,7 +85,7 @@ export default async function buildSearchIndex (provider: string, opts: { log?: 
   await bulkWrite(fn`${IndexName}/${provider}`, files)
   progress(0.97)
   log(`Rebuilding global word vector cache: Loading vector files...`)
-  const vectorFiles = await Promise.all(import.meta.env.VITE_SEARCH_INDEXES.split(',').map(async provider => {
+  const vectorFiles = await Promise.all(import.meta.env.VITE_SEARCH_INDEXES.split(',').map(async (provider: string) => {
     const file = await readFile(fn`${IndexName}/${provider}/vectors.lps`)
     if (file) {
       return parse(file)
@@ -95,7 +95,7 @@ export default async function buildSearchIndex (provider: string, opts: { log?: 
   }))
   progress(0.98)
   log(`Building global word vector cache...`)
-  const globalVectors = {}
+  const globalVectors: { [word: string]: WordVector } = {}
   for (const vectors of vectorFiles) {
     if (vectors) { // only if the index existed and successfully loaded...
       for (const { word, getVector } of vectors) {

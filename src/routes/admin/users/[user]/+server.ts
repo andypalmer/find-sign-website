@@ -1,6 +1,6 @@
 import { writeAuditLog } from '#lib/models/audit-log.ts'
 import { deleteUser, getUser, setUser, userHasPower } from '#lib/models/user.ts'
-import { json, redirect } from '@sveltejs/kit'
+import { redirect } from '@sveltejs/kit'
 import { loginRedirect } from '#lib/passkey/site-auth.ts'
 
 export async function PUT ({ locals, request, params }) {
@@ -14,7 +14,7 @@ export async function PUT ({ locals, request, params }) {
     object: body
   })
   await setUser(params.user, updated)
-  return json(updated)
+  return Response.json(updated)
 }
 
 export async function DELETE ({ locals, params }) {

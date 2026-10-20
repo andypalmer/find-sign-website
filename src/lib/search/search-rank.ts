@@ -2,12 +2,13 @@
 import type { LoadedOrthagonalEntry } from '#lib/orthagonal/read.ts'
 import type { SearchLibrary } from './search'
 import { diversity as vectorDiversity } from '#lib/functions/vector-utilities.ts'
+import type { RankingFilterFunction } from './text'
 
 export type RankedLibrary = {
   entries: LoadedOrthagonalEntry[]
 }
 
-export default function rank (library: SearchLibrary, filterFn): RankedLibrary {
+export default function rank (library: SearchLibrary, filterFn: RankingFilterFunction): RankedLibrary {
   const entries = Object.values(library).flatMap(index => {
     return index.entries.flatMap(entry => {
       const rank = filterFn(entry)

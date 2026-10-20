@@ -11,7 +11,7 @@
 
   // group entries by day, with humane headings
   function dateGrouped (entries: AuditLogEntry[]) {
-    const grouped = []
+    const grouped: { timeString: string, entries: AuditLogEntry[] }[] = []
     for (const entry of entries) {
       const timestamp = new Date(entry.timeMs)
       const timeString = humane(timestamp)

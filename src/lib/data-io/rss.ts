@@ -37,7 +37,7 @@ export default async function readFeed (feedURL: string): Promise<Feed> {
           } else if (name === 'pubDate') {
             entry[name] = Date.parse(text)
           } else {
-            entry[name] = text
+            ;(entry as { [field: string]: unknown })[name] = text
           }
         }
         feed.push(entry)

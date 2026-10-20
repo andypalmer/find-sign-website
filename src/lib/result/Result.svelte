@@ -5,10 +5,10 @@
   import RegionMap from '#lib/RegionMap.svelte'
   import Icon from '#lib/Icon.svelte'
 
-  export let data: EncodedSearchDataEntry = undefined
+  export let data: EncodedSearchDataEntry
   export let expand = false
-  export let permalink = undefined
-  export let carouselSelected = undefined
+  export let permalink: string | undefined = undefined
+  export let carouselSelected: number | undefined = undefined
   export let key: number = 0
   export let prefer: 'performance' | 'quality' = 'performance'
   export let ssrPlayVideo = false
@@ -20,7 +20,7 @@
   const media = watchMedia({ phone: '(max-width: 600px)' })
   $: implicitExpand = expand || $media.phone
 
-  function * getWarnings (tags) {
+  function * getWarnings (tags: string[]) {
     if (tags.includes('invented'))
       yield { text: 'Informal, colloqual sign. Professionals should not use.', type: '', icon: 'alert' }
   }

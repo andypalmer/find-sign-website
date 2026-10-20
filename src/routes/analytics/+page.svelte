@@ -5,7 +5,7 @@
 
   export let data: PageData
 
-  function url (topic) {
+  function url (topic: string) {
     return `/analytics/${topic}`
   }
 </script>

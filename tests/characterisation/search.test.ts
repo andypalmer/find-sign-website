@@ -5,7 +5,7 @@ import { VectorLibraryBase } from '../helpers/test-env'
 import { expect, describe, it, beforeAll, beforeEach } from 'vitest'
 import { FakeDataServer } from '../helpers/fake-data-server'
 import { IndexBase, publishBuiltIndexes } from '../helpers/fixtures'
-import { search, availableIndexes, indexURLs, indexByURL } from '../../src/lib/search/search'
+import { search, availableIndexes, indexURLs, indexByURL, type SearchResult } from '../../src/lib/search/search'
 import { compileQuery } from '../../src/lib/search/text'
 
 let server: FakeDataServer
@@ -17,7 +17,7 @@ beforeAll(async () => {
 
 beforeEach(() => server.resetRequests())
 
-const ids = (response) => response.results.map(r => `${r.index}:${r.id}`)
+const ids = (response: { results: SearchResult[] }) => response.results.map(r => `${r.index}:${r.id}`)
 
 describe('index configuration', () => {
   it('derives index urls from VITE_SEARCH_DATA, VITE_SEARCH_INDEX_NAME and VITE_SEARCH_INDEXES', () => {
@@ -131,13 +131,11 @@ describe('search() network traffic', () => {
 })
 
 describe('search() error handling', () => {
-  it('QUIRK: swallows non-OutdatedError failures while loading results, returning results: undefined', async () => {
+  it('rethrows failures other than OutdatedError while loading results', async () => {
     const shard = `${IndexBase}/beta/shard-0.json`
     server.failures.set(shard, 500)
     try {
-      const response = await search('kitten', 0, 1)
-      expect(response.totalResults).toBe(5)
-      expect(response.results).toBeUndefined()
+      await expect(search('kitten', 0, 1)).rejects.toThrow()
     } finally {
       server.failures.delete(shard)
     }
@@ -151,7 +149,7 @@ describe('search() error handling', () => {
       await expect(search('cat', 0, 1)).rejects.toThrow('Entry buildID unsyncronized')
       expect(server.requestsTo('global-vectors.lps')).toHaveLength(2)
     } finally {
-      server.set(shard, original)
+      server.set(shard, original!)
     }
   })
 })

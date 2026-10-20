@@ -5,7 +5,7 @@ import type { EncodedSearchDataEntry } from '#lib/orthagonal/types.ts';
 
   export let entry: EncodedSearchDataEntry
 
-  const fieldTypes = {
+  const fieldTypes: { [field: string]: string } = {
     id: 'string',
     published: 'boolean',
     title: 'string',

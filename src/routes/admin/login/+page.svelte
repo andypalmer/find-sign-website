@@ -3,7 +3,7 @@
   import PasskeyForm from '#lib/passkey/PasskeyForm.svelte'
   import usernameStore from '#lib/models/username-store.ts'
 
-  function onAuthenticated (...args) {
+  function onAuthenticated (...args: any[]) {
     console.log('onAuthenticated', ...args)
     goto('/admin')
   }

@@ -63,7 +63,7 @@ describe('readEncodedSearchData()', () => {
     expect(a.link).toBe(`${EncodedSearchDataBase}/a.html`)
     expect(a.nav).toEqual([['Home', 'http://data.test/']])
     expect(a.author).toEqual({ id: 'x', link: `${EncodedSearchDataBase}/people/x`, avatar: `${EncodedSearchDataBase}/people/x.png` })
-    expect(a.provider.link).toBe('http://data.test/collections/encoded-search-data/')
+    expect(a.provider!.link).toBe('http://data.test/collections/encoded-search-data/')
     expect(a.media[0].thumbnail).toBe(`${EncodedSearchDataBase}/a-media/a-0.webp`)
     expect(a.media[0].encodes.map(x => x.url)).toEqual([
       `${EncodedSearchDataBase}/a-media/a-0.mp4`,
@@ -89,7 +89,7 @@ describe('normalizeWord()', () => {
 })
 
 describe('writeIndex()', () => {
-  async function build (searchData, lookups: string[] = []) {
+  async function build (searchData: any, lookups: string[] = []): Promise<{ [path: string]: any }> {
     return await writeIndex(searchData, {
       lookupVector: async (word: string) => {
         lookups.push(word)
@@ -150,7 +150,7 @@ describe('writeIndex()', () => {
   })
 
   it('looks up each unique normalised word once and caches only words that have vectors', async () => {
-    const lookups = []
+    const lookups: string[] = []
     const files = await build({
       a: { id: 'a', title: 'A', words: ['Cat', 'cat', 'unknownword'], tags: [], body: '', media: [] },
       b: { id: 'b', title: 'B', words: ['DOG'], tags: [], body: '', media: [] },

@@ -14,10 +14,10 @@
 
   onMount(async () => {
     for await (const entry of progressConsumer(endpoint, id)) {
-      if ('progress' in entry) progress = entry.progress
-      if ('log' in entry) {
+      if (entry.progress !== undefined) progress = entry.progress
+      if (entry.log !== undefined) {
         log = [...log, {
-          timestamp: entry.timestamp,
+          timestamp: entry.timestamp ?? Date.now(),
           message: entry.log.join(' ')
         }]
         tick().then(scrollConsole)

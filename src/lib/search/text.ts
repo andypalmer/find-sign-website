@@ -39,7 +39,7 @@ type Token = string | QueryNode
 type ParserPass = (tokens: Token[]) => Token[]
 
 export type RankingFilterFunction = (searchEntry: LoadedOrthagonalEntry) => number
-export type LookupVectorFunction = (word: string) => Promise<WordVector>
+export type LookupVectorFunction = (word: string) => Promise<WordVector | undefined>
 
 // Vector Library normalization: any words that aren't entirely uppercase (like an acronym) get downcased
 export function normalizeWord (word: string): string {
@@ -70,12 +70,12 @@ export async function vectorizeAST (ast: QueryNode | undefined, lookupVectorFn?:
   if (ast === undefined) {
     return ast
   } else if (ast.type === 'word') {
-    return { ...ast, vector: await lookupVectorFn(ast.string) }
+    return { ...ast, vector: lookupVectorFn ? await lookupVectorFn(ast.string) : undefined }
   } else if (ast.type === 'and' || ast.type === 'or') {
     return {
       ...ast,
-      left: await vectorizeAST(ast.left, lookupVectorFn),
-      right: await vectorizeAST(ast.right, lookupVectorFn),
+      left: await vectorizeAST(ast.left, lookupVectorFn) as QueryNode,
+      right: await vectorizeAST(ast.right, lookupVectorFn) as QueryNode,
     }
   } else {
     return ast
@@ -97,21 +97,21 @@ export async function compileQueryAST (ast: QueryNode | undefined): Promise<Rank
   } else if (ast.type === 'tag') {
     const string = ast.string
     if (ast.positive) {
-      return ({ tags }) => tags.includes(string) ? 0 : Infinity
+      return ({ tags }) => (tags ?? []).includes(string) ? 0 : Infinity
     } else {
-      return ({ tags }) => tags.includes(string) ? Infinity : 0
+      return ({ tags }) => (tags ?? []).includes(string) ? Infinity : 0
     }
   } else if (ast.type === 'word') {
     const { vector, string } = ast
     if (vector) {
       return ({ vectors }) => {
-        const distances = vectors.map(entryVector => distanceSquared(entryVector, vector))
+        const distances = (vectors ?? []).map(entryVector => distanceSquared(entryVector, vector))
         return Math.min(...distances)
       }
     } else {
       const searchWord = ast.string
       return ({ words }) => {
-        return words.some(entryString => entryString.toLowerCase() === searchWord) ? 0 : Infinity
+        return (words ?? []).some(entryString => entryString.toLowerCase() === searchWord) ? 0 : Infinity
       }
     }
   } else if (ast.type === 'author') {
@@ -131,7 +131,7 @@ export async function compileQueryAST (ast: QueryNode | undefined): Promise<Rank
  * @param {string} query
  * @returns {string[]}
  */
-export function tokenize (query) {
+export function tokenize (query: string): string[] {
   const tokens = ['']
 
   for (const char of query) {
@@ -152,7 +152,7 @@ export function tokenize (query) {
  * @param {string} query
  * @returns {QueryNode|undefined}
  */
-export function parseQuery (query) {
+export function parseQuery (query: string): QueryNode | undefined {
   // const tokens = query.split(/[ \t\r\n]+/gmi).filter(x => x !== '')
   return parseTokens(tokenize(query))
 }
@@ -160,19 +160,19 @@ export function parseQuery (query) {
 const parserPasses: ParserPass[] = [
   function parens (tokens) {
     const queue = [...tokens]
-    const output = []
-    let inner = []
+    const output: Token[] = []
+    let inner: Token[] = []
     let depth = 0
 
     while (queue.length > 0) {
-      const token = queue.shift()
+      const token = queue.shift() as Token
       if (token === '(') {
         depth += 1
         if (depth > 1) inner.push(token)
         else inner = []
       } else if (token === ')') {
         if (depth > 1) inner.push(token)
-        else if (depth === 1) output.push(parseTokens(inner))
+        else if (depth === 1) output.push(parseTokens(inner) as QueryNode)
         depth -= 1
       } else {
         if (depth > 0) {
@@ -187,12 +187,12 @@ const parserPasses: ParserPass[] = [
   },
 
   function andors (tokens) {
-    const output = []
+    const output: Token[] = []
     for (const token of tokens) {
-      if (output.length > 1 && ['AND', 'OR'].includes(output.at(-1))) {
-        const type = output.pop().toLowerCase()
-        const left = parseTokens([output.pop()])
-        const right = parseTokens([token])
+      if (output.length > 1 && ['AND', 'OR'].includes(output.at(-1) as string)) {
+        const type = (output.pop() as string).toLowerCase() as 'and' | 'or'
+        const left = parseTokens([output.pop() as Token]) as QueryNode
+        const right = parseTokens([token]) as QueryNode
         output.push({ type, left, right })
       } else {
         output.push(token)
@@ -237,22 +237,23 @@ const parserPasses: ParserPass[] = [
     })
   },
 
-  function implicitAnd (tokens) {
+  function implicitAnd (tokens: Token[]): Token[] {
     if (tokens.length <= 1) {
       return tokens
     } else if (tokens.length === 2) {
       return [{
         type: 'and',
-        left: tokens[0],
-        right: tokens[1]
+        left: tokens[0] as QueryNode,
+        right: tokens[1] as QueryNode
       }]
     } else if (tokens.length > 2) {
       return [{
         type: 'and',
-        left: tokens[0],
-        right: implicitAnd(tokens.slice(1))[0]
+        left: tokens[0] as QueryNode,
+        right: implicitAnd(tokens.slice(1))[0] as QueryNode
       }]
     }
+    return tokens
   }
 ]
 

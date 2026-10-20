@@ -5,12 +5,12 @@
 
   let href = '#send-email'
 
-  function doMailto (event) {
+  function doMailto (event: Event) {
     event.preventDefault()
     location.href = `${proto}:${user}@${domain}`
   }
 
-  function setHref (event) {
+  function setHref () {
     href = `${proto}:${user}@${domain}`
   }
 </script>

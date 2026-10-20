@@ -13,13 +13,13 @@ export async function getRandomSigns (count: number): Promise<{ index: string, i
   const index = Object.entries(library).flatMap(([providerID, data]) => {
     return data.entries.map(entry => ({ providerID, ...entry }))
   }).filter(entry => {
-    return blockedTags.every(tag => !entry.tags.includes(tag))
+    return blockedTags.every(tag => !(entry.tags ?? []).includes(tag))
   })
   const signs: { index: string, id: string }[] = []
 
   for (let i = 0; i < count; i++) {
     const random = index[Math.round(Math.random() * (index.length - 1))]
-    signs.push({ index: indexByURL[random.indexURL], id: random.id })
+    signs.push({ index: indexByURL[random.indexURL], id: random.id as string })
   }
   return signs
 }

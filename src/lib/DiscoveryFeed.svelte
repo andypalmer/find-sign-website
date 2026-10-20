@@ -3,17 +3,26 @@
   import MainBlock from '#lib/MainBlock.svelte'
   import { humane as humaneTime } from '#lib/functions/date.ts'
 
-  export let feed = undefined
+  type FeedItem = { author: { name?: string, url?: string }, verb?: string, title: string, date: string, cacheURL?: string, remoteURL?: string }
+
+  export let feed: FeedItem[] | undefined = undefined
+
+  // local calendar date, for <time datetime>
+  function dateOnly (timestamp: number): string {
+    const date = new Date(timestamp)
+    return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(n => `${n}`.padStart(2, '0')).join('-')
+  }
 
   // group entries by day, with humane headings
-  function dateGrouped (entries) {
-    const grouped = []
+  function dateGrouped (entries: FeedItem[]) {
+    const grouped: { humane: string, computer: string, entries: FeedItem[] }[] = []
     for (const entry of entries) {
       const timestamp = Date.parse(entry.date)
       const humane = humaneTime(timestamp)
       if (grouped.length === 0 || grouped[0].humane !== humane) {
         grouped.unshift({
           humane,
+          computer: dateOnly(timestamp),
           entries: [entry]
         })
       } else {

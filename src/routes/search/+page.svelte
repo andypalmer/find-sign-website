@@ -19,14 +19,14 @@
   export let data: PageData
   $: ({ query, page, totalPages, results, viewport, region } = data)
 
-  let didYouMean = undefined
+  let didYouMean: string | undefined = undefined
   $: (results.length === 0) && autocorrect(query)
 
   const media = watchMedia({ phone: '(max-width: 600px)' })
   $: if (browser) viewport = $media.phone ? 'mobile' : 'desktop'
 
   // attempt to offer autocorrection
-  async function autocorrect(query) {
+  async function autocorrect(query: string) {
     didYouMean = undefined
     const lib = await getSearchLibrary(false, ['words'])
     const words: Set<string> = new Set()
@@ -55,7 +55,7 @@
     }
   }
 
-  function regionChangeHandler (event) {
+  function regionChangeHandler (event: CustomEvent<{ region: string | false }>) {
     console.log(event)
     if (event.detail.region !== region) {
       const searchParams = new URLSearchParams($pageStore.url.searchParams)
@@ -115,7 +115,7 @@
       <Result
         data={entry}
         key={idx}
-        permalink={fn`/sign/${entry.index || entry.provider.id}/${entry.id}`}
+        permalink={fn`/sign/${entry.index || entry.provider?.id}/${entry.id}`}
         prefer={viewport === 'desktop' ? 'performance' : 'quality'} />
     {/each}
   </div>

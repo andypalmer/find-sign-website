@@ -6,7 +6,7 @@
 
   export let data: PageData
 
-  function getURL (index, id) {
+  function getURL (index: string, id: string | undefined) {
     return fn`/sign/${index}/${id}`
   }
 </script>

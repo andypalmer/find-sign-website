@@ -1,4 +1,3 @@
-import { json } from '@sveltejs/kit'
 import { createProgressLog, nextUpdateResponse } from '#lib/progress/progress-log.ts'
 import { loginRedirect } from '#lib/passkey/site-auth.ts'
 import type { RequestHandler } from './$types'
@@ -22,11 +21,11 @@ export const POST: RequestHandler = async ({ locals, params }) => {
       try {
         validateEncodedSearchDataEntry(entry)
       } catch (err) {
-        log(`${key}: ${err.message}`)
+        log(`${key}: ${(err as Error).message}`)
       }
     }
     progress(1.0)
   })
 
-  return json({ progress })
+  return Response.json({ progress })
 }

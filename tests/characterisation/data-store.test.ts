@@ -21,7 +21,7 @@ describe('createLicense()', () => {
   it('signs "validFrom-validTo" (30s ago to 2 minutes ahead) with the identity secret key', () => {
     vi.useFakeTimers()
     vi.setSystemTime(1_000_000)
-    const identity = process.env.VITE_SEARCH_WRITE_IDENTITY
+    const identity = process.env.VITE_SEARCH_WRITE_IDENTITY as string
     const [scheme, publicKey, signature] = createLicense(identity).split('-')
     expect(scheme).toBe('ed25519')
     expect(decodeHex(publicKey)).toEqual(writeKeyPair.publicKey)
@@ -69,7 +69,7 @@ describe('data-io requests', () => {
     server.set(`${DataBase}dir/b.json`, '2')
     expect((await listFiles('dir')).map(f => f.name)).toEqual(['a.json', 'b.json'])
     expect(await listFilenames('dir')).toEqual(['a.json', 'b.json'])
-    expect(server.requests.at(-1).headers['accept']).toBe('text/plain')
+    expect(server.requests.at(-1)!.headers['accept']).toBe('text/plain')
     expect(await listFiles('nothing')).toEqual([])
     expect(await listFilenames('nothing')).toEqual([])
   })
@@ -100,7 +100,7 @@ describe('user model', () => {
     expect(['', '2bob', 'a b', 'a.b', '../x'].map(validateUsername)).toEqual([false, false, false, false, false])
     // every line of a multi-line name used to be checked separately, letting path segments through
     expect(validateUsername('alice\n../users/x')).toBe(false)
-    expect(validateUsername(undefined)).toBe(false)
+    expect(validateUsername(undefined as any)).toBe(false)
   })
 
   it('stores users as users/<name>.json with empty powers and a created timestamp', async () => {
@@ -119,11 +119,12 @@ describe('user model', () => {
     await grantPower('alice', 'everything')
     expect(await userHasPower('alice', 'edit-users')).toBe(true)
     await removePower('alice', 'everything')
-    expect((await getUser('alice')).powers).toEqual(['edit-index'])
+    expect((await getUser('alice'))!.powers).toEqual(['edit-index'])
   })
 
-  it('QUIRK: userHasPower throws for an unknown user instead of returning false', async () => {
-    await expect(userHasPower('nobody', 'edit-index')).rejects.toThrow(TypeError)
+  it('an unknown user has no powers, and granting one to them throws', async () => {
+    expect(await userHasPower('nobody', 'edit-index')).toBe(false)
+    await expect(grantPower('nobody', 'edit-index')).rejects.toThrow('User not found')
   })
 
   it('lists users from the users directory listing, and deletes them', async () => {
@@ -159,7 +160,7 @@ describe('audit log model', () => {
     expect(logs.map((x: any) => [x.timeMs, x.actionType, x.actor])).toEqual([[1000, 'edit-user', 'alice'], [2000, 'add-user', 'bob']])
     const entry = await readAuditLog(logs[0])
     expect(entry).toMatchObject({ message: 'first', timeMs: 1000 })
-    expect(entry.time).toEqual(new Date(1000))
+    expect(entry!.time).toEqual(new Date(1000))
   })
 
   it('GAP: readAuditLog joins the filename into the path unchecked, so ../ reaches other files', async () => {

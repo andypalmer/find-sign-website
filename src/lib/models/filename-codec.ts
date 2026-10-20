@@ -2,7 +2,7 @@
 /** convert any utf-8 string to a url and filesystem safe string */
 export function encodeFilename (str: string): string {
   return str.replace(/[^a-z0-9*'()_.!-]/gmiu, char =>
-    `~${char.codePointAt(0).toString(36).toLowerCase()}.`
+    `~${(char.codePointAt(0) as number).toString(36).toLowerCase()}.`
   ) // - _ . ! ~ * ' ( )
 }
 

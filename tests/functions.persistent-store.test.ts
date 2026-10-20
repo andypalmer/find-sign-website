@@ -13,7 +13,7 @@ function fakeStorage (initial: { [key: string]: string } = {}) {
 }
 
 describe('/src/lib/functions/persistent-store.ts', () => {
-  afterEach(() => { delete globalThis.localStorage })
+  afterEach(() => { delete (globalThis as any).localStorage })
 
   it('acts as a plain writable during SSR', () => {
     const store = persistentWritable('k', 'initial')

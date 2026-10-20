@@ -11,6 +11,7 @@ export async function load ({ locals, params }) {
   return {
   provider: params.provider,
   meta: index.meta,
-  entries: index.entries.map(x => ({ id: x.id, title: x.title }))
+  // every index entry has an id
+  entries: index.entries.map(x => ({ id: x.id as string, title: x.title }))
 }
 }

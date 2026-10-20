@@ -35,16 +35,16 @@ export type LoadedOrthagonalEntry = {
 export class OutdatedError extends Error {
   indexURL: string
 
-  constructor (message, indexURL) {
+  constructor (message: string, indexURL: string) {
     super(`${message}: ${indexURL}`)
     this.indexURL = indexURL
   }
 }
 
 /** load the search index */
-export async function loadIndex (url: string, columns = [], forceReload = false, globalVectors?: { [word: string]: WordVector }): Promise<LoadedOrthagonalIndex> {
+export async function loadIndex (url: string, columns: string[] = [], forceReload = false, globalVectors?: { [word: string]: WordVector }): Promise<LoadedOrthagonalIndex> {
   try {
-    const columnData = {}
+    const columnData: { [name: string]: OrthagonalColumnData } = {}
     const forceRecheck: RequestInit = { cache: 'no-cache' }
     const lazyCache: RequestInit = { cache: 'default' }
     const loadOptions: RequestInit = forceReload ? forceRecheck : lazyCache
@@ -71,9 +71,9 @@ export async function loadIndex (url: string, columns = [], forceReload = false,
       url,
       meta,
       entries: [...times(meta.entries, idx => {
-        const obj = {
+        const obj: LoadedOrthagonalEntry & { [column: string]: any } = {
           /** searchable vectors */
-          vectors: [],
+          vectors: [] as WordVector[],
           /** load this entry's full definition file */
           load: async () => loadEntry(index, idx),
           indexURL: url
@@ -96,8 +96,8 @@ export async function loadIndex (url: string, columns = [], forceReload = false,
           }
           if (isVectorIndexed && columns.includes('vectors')) {
             for (const word of data.entries[idx]) {
-              const vector = vectors[word] || vectors[word.toLowerCase()]
-              if (vector) obj.vectors.push(vector)
+              const vector = vectors?.[word] || vectors?.[word.toLowerCase()]
+              if (vector) (obj.vectors as WordVector[]).push(vector)
             }
           }
         }

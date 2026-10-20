@@ -48,7 +48,7 @@ describe('getUpdatesFeed()', () => {
       ],
     })
     const car = feed.items.find(x => x.id === 'alpha:car')
-    expect(car.authors).toEqual([{ name: 'Phoenix', url: 'https://alpha.test/phoenix', avatar: undefined }])
+    expect(car!.authors).toEqual([{ name: 'Phoenix', url: 'https://alpha.test/phoenix', avatar: undefined }])
   })
 
   it('adds __fs_verb and __fs_words when extended', async () => {
@@ -88,10 +88,10 @@ describe('homepage load', () => {
     const load = await freshHomepageLoad()
     const { feed, automated } = await load({ url: new URL('http://site.test/'), setHeaders: () => {} })
     expect(automated).toBe(false)
-    expect(feed.map(x => `${x.verb}:${x.title}`)).toEqual([
+    expect(feed.map((x: any) => `${x.verb}:${x.title}`)).toEqual([
       'documented:dog', 'documented:car', 'blogged:post-a', 'documented:cat', 'shared:Kitten', 'blogged:post-b',
     ])
-    expect(feed.find(x => x.verb === 'blogged')).toEqual({
+    expect(feed.find((x: any) => x.verb === 'blogged')).toEqual({
       author: { name: 'Find Sign' }, verb: 'blogged', title: 'post-a',
       date: new Date(2000).toISOString(), remoteURL: 'https://news.test/post-a',
     })
@@ -112,7 +112,7 @@ describe('homepage load', () => {
       const load = await freshHomepageLoad()
       const { feed } = await load({ url: new URL('http://site.test/'), setHeaders: () => {} })
       expect(feed).toHaveLength(4)
-      expect(feed.every(x => x.verb !== 'blogged')).toBe(true)
+      expect(feed.every((x: any) => x.verb !== 'blogged')).toBe(true)
       expect((console.error as any).mock.calls.length > 0).toBe(logged)
     } finally {
       server.failures.delete(NewsRSS)

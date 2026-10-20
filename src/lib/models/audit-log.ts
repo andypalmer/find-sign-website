@@ -16,7 +16,7 @@ export type AuditLogEntry = {
   actor: string, // person who did the action, their username in the search/users accounts
   message: string,
   extra?: AuditExtraData,
-  filename?: string,
+  filename: string,
 }
 
 
@@ -64,7 +64,7 @@ export async function listAuditLogs (): Promise<AuditLogID[]> {
   }).sort((a,b) => a.timeMs - b.timeMs)
 }
 
-export async function readAuditLog (id: AuditLogID): Promise<AuditLogEntry> {
+export async function readAuditLog (id: Partial<AuditLogID> & { filename: string }): Promise<AuditLogEntry | undefined> {
   const data = await readFile(`audit-log/${id.filename}`)
   if (data) {
     const string = bytesToString(data)

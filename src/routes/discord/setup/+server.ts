@@ -2,10 +2,9 @@ import type { RequestHandler } from './$types'
 import { DiscordAppID, TestGuildID } from '../_setup.js'
 import { discordRequest } from '../_discord_request.js'
 import commands from '../_commands.js'
-import { json } from '@sveltejs/kit'
 
 // Checks for a command
-async function hasCommand(command, isDev) {
+async function hasCommand(command: { name: string }, isDev: boolean) {
   // API endpoint to get and post guild commands
   const endpoint = isDev
     ? `applications/${DiscordAppID}/guilds/${TestGuildID}/commands`
@@ -31,7 +30,7 @@ async function hasCommand(command, isDev) {
 }
 
 // Installs a command
-async function installCommand(command, endpoint) {
+async function installCommand(command: { name: string }, endpoint: string) {
   // API endpoint to get and post guild commands
   // const endpoint = `applications/${DiscordAppID}/guilds/${TestGuildID}/commands`
   // const endpoint = `applications/${DiscordAppID}/commands`
@@ -54,5 +53,5 @@ export const GET: RequestHandler = async ({ url }) => {
     const result = await hasCommand(command, isDev)
     output.push({ command, result })
   }
-  return json(output)
+  return Response.json(output)
 }

@@ -6,7 +6,7 @@ import { browser } from '$app/env';
 export default readable(0, (set) => {
   if (browser) {
     let cancel = false
-    const update = (time) => {
+    const update = (time: number) => {
       if (cancel) return
       set(time / 1000)
       requestAnimationFrame(update)

@@ -6,15 +6,15 @@ function fakeMatchMedia (initial: { [query: string]: boolean }) {
   const lists = new Map<string, { matches: boolean, listeners: Set<() => void> }>()
   const matchMedia = (query: string) => {
     if (!lists.has(query)) lists.set(query, { matches: !!initial[query], listeners: new Set() })
-    const list = lists.get(query)
+    const list = lists.get(query)!
     return {
       get matches () { return list.matches },
-      addEventListener: (_type, fn) => list.listeners.add(fn),
-      removeEventListener: (_type, fn) => list.listeners.delete(fn),
+      addEventListener: (_type: string, fn: () => void) => list.listeners.add(fn),
+      removeEventListener: (_type: string, fn: () => void) => list.listeners.delete(fn),
     }
   }
   const change = (query: string, matches: boolean) => {
-    const list = lists.get(query)
+    const list = lists.get(query)!
     list.matches = matches
     for (const fn of list.listeners) fn()
   }
@@ -22,7 +22,7 @@ function fakeMatchMedia (initial: { [query: string]: boolean }) {
 }
 
 describe('/src/lib/functions/media-store.ts', () => {
-  afterEach(() => { delete globalThis.window })
+  afterEach(() => { delete (globalThis as any).window })
 
   it('reports no matches and empty classNames during SSR', () => {
     expect(get(watchMedia({ phone: '(max-width: 600px)' }))).toEqual({ classNames: '' })
@@ -38,7 +38,7 @@ describe('/src/lib/functions/media-store.ts', () => {
   it('updates when a query changes, and stops listening when unsubscribed', () => {
     const fake = fakeMatchMedia({ '(max-width: 600px)': false })
     vi.stubGlobal('window', { matchMedia: fake.matchMedia })
-    const values = []
+    const values: any[] = []
     const unsubscribe = watchMedia({ phone: '(max-width: 600px)' }).subscribe(v => values.push(v))
     fake.change('(max-width: 600px)', true)
     expect(values.at(-1)).toEqual({ phone: true, classNames: 'media-phone' })

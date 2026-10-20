@@ -6,9 +6,9 @@
 
   export let data: PageData
 
-  let rebuilding = {}
+  let rebuilding: { [index: string]: { endpoint: string, id: string, finished: boolean } } = {}
 
-  async function rebuild (event, index, opts) {
+  async function rebuild (event: Event, index: string, opts: { fast?: boolean }) {
     event.preventDefault()
     if (rebuilding[index]) {
       console.log('already rebuilding...')
@@ -21,7 +21,7 @@
     }
   }
 
-  async function validate (event, index) {
+  async function validate (event: Event, index: string) {
     event.preventDefault()
 
     if (rebuilding[index]) {
@@ -35,11 +35,11 @@
     }
   }
 
-  function indexURL (index) {
+  function indexURL (index: string) {
     return fn`/admin/indexes/${index}`
   }
 
-  async function buildFinished (index) {
+  async function buildFinished (index: string) {
     rebuilding[index].finished = true
     rebuilding = rebuilding
 

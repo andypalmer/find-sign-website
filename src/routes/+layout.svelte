@@ -19,7 +19,7 @@
 	$: isSearchLoad = $navigating && $navigating.to && $navigating.to.url.pathname === '/search'
 
 	let showSpinner = false
-	let timer = undefined
+	let timer: ReturnType<typeof setTimeout> | undefined = undefined
 	$: if (loading === true && isSearchLoad === false) {
 		if (timer) clearTimeout(timer)
 		timer = setTimeout(() => showSpinner = true, 50)

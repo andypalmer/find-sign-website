@@ -11,7 +11,7 @@
   export let key: number|string = 0 // unique index of carousel, for search params state transmission
   export let medias: SearchDataEncodedMedia[] = []
   export let selected: number = parseInt($page.url.searchParams.get(`carousel${key}`) || '0')
-  export let link = undefined
+  export let link: string | undefined = undefined
   export let prefer: 'performance' | 'quality' = 'performance'
   export let ssrPlayVideo = false
 
@@ -25,7 +25,7 @@
 
   let isInView = ssrPlayVideo
 
-  function intersectionChange(event) {
+  function intersectionChange(event: CustomEvent<{ inView: boolean }>) {
     isInView = event.detail.inView
   }
 
@@ -33,7 +33,7 @@
   // 'image' or 'video'
   $: type = media[0].type.split('/')[0]
 
-  function buttonHref (base, selection: number): string {
+  function buttonHref (base: URLSearchParams, selection: number): string {
     const params = new URLSearchParams(base)
     params.set(`carousel${key}`, `${selection}`)
     return `?${params}`

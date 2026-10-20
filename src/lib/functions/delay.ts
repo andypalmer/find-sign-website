@@ -1,9 +1,9 @@
 /**
  * Delay until promise resolves
  */
-export async function delay<Type> (duration: number, value: Type = undefined): Promise<Type> {
+export async function delay<Type = undefined> (duration: number, value?: Type): Promise<Type> {
   await new Promise((resolve, _) => { setTimeout(() => resolve(undefined), duration) })
-  return value
+  return value as Type
 }
 
 /**
@@ -14,9 +14,9 @@ export async function delay<Type> (duration: number, value: Type = undefined): P
  *
  * If a laggy promise rejects, laterDo is called with undefined as value, and reason as second argument
  */
-export async function lagSwitch<Type> (maxDelay: number, promise: Promise<Type>, defaultValue: Type, laterDo: (Type, error?: string) => any): Promise<Type> {
+export async function lagSwitch<Type> (maxDelay: number, promise: Promise<Type>, defaultValue: Type, laterDo: (value: Type | undefined, error?: any) => any): Promise<Type> {
   return await new Promise((resolve, reject) => {
-    let timeout
+    let timeout: ReturnType<typeof setTimeout> | undefined
     const giveup = () => {
       resolve(defaultValue)
       timeout = undefined
@@ -33,7 +33,7 @@ export async function lagSwitch<Type> (maxDelay: number, promise: Promise<Type>,
     promise.catch(reason => {
       if (timeout) {
         clearTimeout(timeout)
-        reject(timeout)
+        reject(reason)
       } else {
         laterDo(undefined, reason)
       }

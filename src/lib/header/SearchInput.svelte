@@ -17,10 +17,10 @@
 
   export let formAction = '/search'
   export let method: 'GET' | 'POST' = 'GET'
-  export let queryHandler = undefined
+  export let queryHandler: ((query: string) => void) | undefined = undefined
   export let query = ''
-  export let input = undefined
-  let formElement
+  export let input: HTMLInputElement | undefined = undefined
+  let formElement: HTMLFormElement
   let showAdvanced = false
 
   const fire = createEventDispatcher()
@@ -43,7 +43,7 @@
     goto(url.href)
   }
 
-  function onSearch (event) {
+  function onSearch (event: SubmitEvent) {
     if (queryHandler) {
       event.preventDefault()
       queryHandler(query)
@@ -52,7 +52,7 @@
 </script>
 
 <form class={$$props.class} style={$$props.style} bind:this={formElement} role=search autocomplete=off action={formAction} {method} on:submit={onSearch}>
-  <div class="left-icon" on:click={() => input.focus()}>
+  <div class="left-icon" on:click={() => input?.focus()}>
     {#if !isSearchLoad}
       <Icon name=search/>
     {:else}

@@ -22,7 +22,7 @@
   })
 </script>
 <svelte:head>
-	<title>{result.provider.name || result.provider.id}’s “{result.title || result.words.join(' ')}”</title>
+	<title>{result.provider?.name || result.provider?.id}’s “{result.title || result.words.join(' ')}”</title>
   <meta property="og:title" content="Auslan: “{result.title || result.words.join(' ')}”">
   <meta property="og:type" content="video">
   <meta property="og:description" content="{result.body}">
@@ -51,8 +51,8 @@
       url: result.author.link,
       image: result.author.avatar
     } : {
-      name: result.provider.name || result.provider.id,
-      url: result.provider.link,
+      name: result.provider?.name || result.provider?.id,
+      url: result.provider?.link,
     }
   })}</script>`}
 </svelte:head>

@@ -22,7 +22,9 @@
   <h2><a href={next} role="button" class="button" data-sveltekit-reset="false" data-sveltekit-preload-data>🎲 Reroll</a></h2>
   <div class="result-box">
     {#key permalink}
-      <Result data={result} {permalink} expand prefer="quality" />
+      {#if result}
+        <Result data={result} {permalink} expand prefer="quality" />
+      {/if}
     {/key}
   </div>
   <div style="height: 20em"></div>

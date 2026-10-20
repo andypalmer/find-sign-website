@@ -41,7 +41,7 @@
 		return (monthStartMs - yearStartMs) / (24 * 60 * 60 * 1000)
 	})]
 
-	const yearMonthFormat = (dayOfYear) => {
+	const yearMonthFormat = (dayOfYear: number) => {
 		const tickDate = new Date(yearStartMs + (dayOfYear * 24 * 60 * 60 * 1000))
 		const utcMonth = tickDate.getUTCMonth()
 		return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][utcMonth]
@@ -56,7 +56,7 @@
 	$: avgWeekPoints = tzRotate(data.avgWeek, tzOffsetHrs, TzRotateHours).map((y, x) => ({ x: x / 24, y }))
 
 	// polling for updates mechanism, only if year is current
-	let refreshTimer
+	let refreshTimer: ReturnType<typeof setTimeout> | undefined
 	$: if (browser && data && data.maxAge && data.year === (new Date()).getUTCFullYear()) {
 		if (refreshTimer) clearTimeout(refreshTimer)
 		refreshTimer = setTimeout(() =>

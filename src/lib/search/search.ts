@@ -11,13 +11,13 @@ import type { WordVector } from './precomputed-vectors'
 // the name of the overall index collection, to seperate prod builds from beta and tonino (phoenix's laptop)
 const IndexName = import.meta.env.VITE_SEARCH_INDEX_NAME
 // from .env, a list of indexes the search engine currently reads
-export const availableIndexes = import.meta.env.VITE_SEARCH_INDEXES.split(',')
+export const availableIndexes: string[] = import.meta.env.VITE_SEARCH_INDEXES.split(',')
 // an object of index names to url's where that index is published
 export const indexURLs = Object.fromEntries(availableIndexes.map(name => {
   return [name, import.meta.env.VITE_SEARCH_DATA + fn`${IndexName}/${name}`]
 }))
 // an object of index names, keyed by the url to that index, for reverse lookup
-export const indexByURL = Object.fromEntries(Object.entries(indexURLs).map(x => x.reverse()))
+export const indexByURL: { [url: string]: string } = Object.fromEntries(Object.entries(indexURLs).map(([name, url]) => [url, name]))
 
 // return type of search()
 export type SearchResponse = {
@@ -38,7 +38,7 @@ export interface SearchResult extends EncodedSearchDataEntry {
 
 // getSearchLibrary loads a collection of search libraries, possibly limited to a specific set
 // of indexes (e.g. auslan-signbank) and a specific set of columns (words, tags, link, id, author, etc)
-export async function getSearchLibrary (limitLibraries: string[] | false = false, columns = ['words', 'tags'], forceReload = false, globalVectors?: { [word: string]: WordVector }): Promise<SearchLibrary> {
+export async function getSearchLibrary (limitLibraries: string[] | false = false, columns: string[] = ['words', 'tags'], forceReload = false, globalVectors?: { [word: string]: WordVector }): Promise<SearchLibrary> {
   if (limitLibraries === false) limitLibraries = Object.keys(indexURLs)
 
   const collection = Object.fromEntries(await Promise.all(limitLibraries.map(async name => {
@@ -54,7 +54,7 @@ export async function getSearchLibrary (limitLibraries: string[] | false = false
 export async function search (query: string, start: number, length: number, forceReload = false): Promise<SearchResponse> {
   // load the globalVector cache, this file contains a word-vector pairing for every word that
   // exists in the search index (in the result titles/words lists)
-  let globalVectors: { [word: string]: Float32Array }
+  let globalVectors: { [word: string]: WordVector } | undefined
   if (/*!globalVectors &&*/ checkQueryContainsWords(query)) {
     // !!! should this have a cache expiry mechanism?
     globalVectors = await openGlobalVectors(import.meta.env.VITE_SEARCH_DATA + fn`${IndexName}/global-vectors.lps`)
@@ -62,7 +62,7 @@ export async function search (query: string, start: number, length: number, forc
 
   // word lookup function which checks the local vectors cache before bothering to load rare words
   // from the word vector library
-  const lookupLocal = async function (word) {
+  const lookupLocal = async function (word: string) {
     if (globalVectors && globalVectors[word]) return globalVectors[word]
     return lookup(word)
   }
@@ -91,7 +91,7 @@ export async function search (query: string, start: number, length: number, forc
 
   // slice out the results that are wanted (which page, basically)
   const resultEntries = rankedIndex.entries.slice(start, start + length)
-  let results: SearchResult[]
+  let results: SearchResult[] = []
   try {
     // load the full search result json for each result, so we have everything needed to present
     // to user
@@ -112,8 +112,8 @@ export async function search (query: string, start: number, length: number, forc
       if (forceReload === false) {
         return await search(query, start, length, true)
       }
-      throw error
     }
+    throw error
   }
 
   return {

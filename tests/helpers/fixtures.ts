@@ -88,7 +88,7 @@ export async function publishVectorLibrary (server: FakeDataServer, vectors = wo
 }
 
 /** publish encoded-search-data json files for alpha and beta */
-export function publishSearchData (server: FakeDataServer, data = { alpha: alphaSearchData(), beta: betaSearchData() }) {
+export function publishSearchData (server: FakeDataServer, data: { [provider: string]: object } = { alpha: alphaSearchData(), beta: betaSearchData() }) {
   for (const provider in data) {
     server.set(`${EncodedSearchDataBase}/${provider}.json`, data[provider])
   }

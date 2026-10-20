@@ -5,7 +5,7 @@
 	import SearchInput from './SearchInput.svelte'
 
 	export let showNavigation = true
-  export let query = undefined
+  export let query: string | undefined = undefined
   export let formAction = '/search'
 
   const versionLabel = import.meta.env.VITE_VERSION_LABEL

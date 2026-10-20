@@ -13,9 +13,9 @@ export default function watchMedia<Name extends string> (queries: { [name in Nam
     const lists = Object.entries<string>(queries).map(([name, query]) => [name, window.matchMedia(query)] as const)
     const update = () => {
       const state = { classNames: '' } as MediaState<Name>
-      const classNames = []
+      const classNames: string[] = []
       for (const [name, list] of lists) {
-        state[name] = list.matches
+        ;(state as { [name: string]: boolean | string })[name] = list.matches
         if (list.matches) classNames.push(`media-${name}`)
       }
       state.classNames = classNames.join(' ')

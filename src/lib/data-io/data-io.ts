@@ -110,12 +110,12 @@ export async function mathWrite (path: string, length: number, format: MathForma
   })
 }
 
-export async function readFile (path: string): Promise<Uint8Array> {
+export async function readFile (path: string): Promise<Uint8Array | undefined> {
   try {
     const response = await request(path, {})
     return new Uint8Array(await response.arrayBuffer())
   } catch (err) {
-    if (err.message.startsWith('404:')) {
+    if ((err as Error).message.startsWith('404:')) {
       return undefined
     } else {
       throw err
@@ -134,7 +134,7 @@ export async function listFiles (path: string): Promise<FileInfoJSON[]> {
     const { files } = await response.json() as { files: FileInfoJSON[] }
     return files
   } catch (err) {
-    if (err.message.startsWith('404:')) {
+    if ((err as Error).message.startsWith('404:')) {
       return []
     } else {
       throw err
@@ -150,7 +150,7 @@ export async function listFilenames (path: string): Promise<string[]> {
     const files = responseText.split('\n')
     return files
   } catch (err) {
-    if (err.message.startsWith('404:')) {
+    if ((err as Error).message.startsWith('404:')) {
       return []
     } else {
       throw err

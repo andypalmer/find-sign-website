@@ -28,7 +28,7 @@ let server: FakeDataServer
 
 beforeEach(async () => {
   server = new FakeDataServer().install()
-  await createUser('viewer', { authenticators: { cred: { counter: 1 } } })
+  await createUser('viewer', { authenticators: { cred: { counter: 1 } } } as any)
   await createUser('indexer', { powers: ['edit-index'] })
   await createUser('admin', { powers: ['edit-users'] })
   server.resetRequests()
@@ -65,7 +65,7 @@ describe('session cookie (hooks.server.ts handle)', () => {
 describe('login required pages', () => {
   it('redirects logged out visitors to the login page', async () => {
     for (const load of [adminHome.load, adminIndexes.load, adminUsers.load] as any[]) {
-      const thrown = await load(event()).catch(err => err)
+      const thrown = await load(event()).catch((err: unknown) => err)
       expect(isRedirect(thrown)).toBe(true)
       expect(thrown).toMatchObject({ status: 307, location: '/admin/login' })
     }
@@ -85,7 +85,7 @@ describe('login required pages', () => {
 
   it('GAP: an edit-users holder can grant themselves any power, including "everything"', async () => {
     const response = await adminUserEndpoint.PUT(asUser('admin', { params: { user: 'admin' }, method: 'PUT', body: { powers: ['everything'] } }))
-    expect((await getUser('admin')).powers).toEqual(['everything'])
+    expect((await getUser('admin'))!.powers).toEqual(['everything'])
     // responds with the updated user, which the edit page reads back
     expect(await response.json()).toMatchObject({ powers: ['everything'] })
   })
@@ -119,14 +119,14 @@ describe('audit log pages', () => {
 
   it('GAP: the audit log page needs no login', async () => {
     const page: any = await auditLog.load(event({ url: 'http://site.test/admin/audit-log' }))
-    expect(page.pageEntries.map(x => x.message)).toEqual(['change 1', 'change 2', 'change 3'])
+    expect(page.pageEntries.map((x: any) => x.message)).toEqual(['change 1', 'change 2', 'change 3'])
     expect(page).toMatchObject({ currentPage: 0, totalPages: 1 })
   })
 
   it('GAP + QUIRK: the audit feed needs no login, and lists the OLDEST 50 entries', async () => {
     const response = await auditFeed.GET(event({ url: 'http://site.test/admin/audit-log/feed.json' }))
     const feed = await response.json()
-    expect(feed.items.map(x => x.content_text)).toEqual([
+    expect(feed.items.map((x: any) => x.content_text)).toEqual([
       'admin performed a edit-user action: change 1',
       'admin performed a edit-user action: change 2',
       'admin performed a edit-user action: change 3',
@@ -158,7 +158,7 @@ describe('automation/build-index', () => {
     expect(response.headers.get('content-type')).toBe('text/plain')
     // QUIRK: the stream enqueues strings, not bytes; SvelteKit's node adapter copes, but
     // standard Response.text() rejects it, so read the stream directly
-    const reader = response.body.getReader()
+    const reader = response.body!.getReader()
     const chunks = []
     for (let r = await reader.read(); !r.done; r = await reader.read()) chunks.push(r.value)
     expect(chunks.every(x => typeof x === 'string')).toBe(true)

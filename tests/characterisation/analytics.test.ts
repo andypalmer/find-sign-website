@@ -6,7 +6,7 @@ import { isHttpError } from '@sveltejs/kit'
 const readAnalyticsYear = vi.fn()
 vi.mock('../../src/lib/models/analytics', async () => {
   const actual: any = await vi.importActual('../../src/lib/models/analytics')
-  return { ...actual, readAnalyticsYear: (...args) => readAnalyticsYear(...args) }
+  return { ...actual, readAnalyticsYear: (...args: any[]) => readAnalyticsYear(...args) }
 })
 
 const { load } = await import('../../src/routes/analytics/[...topic=analyticsTopic]/+page.server')
@@ -23,7 +23,7 @@ describe('analytics page load', () => {
     readAnalyticsYear.mockResolvedValue(yearOfMinutes())
     const page: any = await load(event())
     expect(page.days).toHaveLength(365)
-    expect(page.days.every(x => x === 0)).toBe(true)
+    expect(page.days.every((x: number) => x === 0)).toBe(true)
     expect(page.avgDay).toEqual(new Array(288).fill(0))
     expect(page.avgWeek).toEqual(new Array(168).fill(0))
   })

@@ -5,7 +5,7 @@
   export let data: PageData
   $: ({ meta, entries, provider } = data)
 
-  function url (provider, id) {
+  function url (provider: string, id: string) {
     return fn`/admin/indexes/${provider}/entries/${id}`
   }
 

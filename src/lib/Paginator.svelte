@@ -3,8 +3,8 @@
 
   export let length = 1
   export let selected = 0
-  export let toURL = (pagenum) => `?page=${pagenum}`
-  export let toAriaLabel = (pagenum) => `Page ${pagenum + 1}`
+  export let toURL = (pagenum: number) => `?page=${pagenum}`
+  export let toAriaLabel = (pagenum: number) => `Page ${pagenum + 1}`
 </script>
 
 <nav aria-label="Pagination links">

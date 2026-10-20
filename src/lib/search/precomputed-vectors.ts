@@ -5,6 +5,7 @@ import { chunkIterable } from '#lib/functions/iters.ts'
 import { iterateLengthPrefixed } from '#lib/functions/iters.ts'
 import { bytesToString } from '#lib/functions/string-encode.ts'
 import varint from 'varint'
+import type { Vector } from '#lib/functions/vector-utilities.ts'
 
 export type VectorLibrary = {
   path: string, // path to folder containing settings.json and shards
@@ -66,7 +67,8 @@ export function * parse (buffer: Uint8Array) {
 // used by orthagonal index to build a word cache
 // if fidelity is specified as a number < 1.0, the vectors will be compressed and scaled more aggressively
 // in hopes of producing a more gzip/brotli compressible result
-export function build (entries: { [word: string]: number[] }, fidelity = 1.0) {
+// entries may be number arrays or Float32Arrays; the arithmetic below runs in the entries' own precision
+export function build (entries: { [word: string]: Vector }, fidelity = 1.0) {
   const pieces: Uint8Array[] = []
   const textEncoder = new TextEncoder()
 
@@ -77,7 +79,7 @@ export function build (entries: { [word: string]: number[] }, fidelity = 1.0) {
 
     // compute the compressed vector
     const vector = entries[word]
-    const scaling = Math.max(...vector.map(x => Math.abs(x))) / (fidelity ** 2)
+    const scaling = Math.max(...Array.from(vector.map(x => Math.abs(x)))) / (fidelity ** 2)
     const scaledVector = vector.map(x => x / scaling)
     const discretizedVector = scaledVector.map(x => {
       const value = ((x + 1.0) / 2.0) * 255
@@ -108,8 +110,8 @@ export function build (entries: { [word: string]: number[] }, fidelity = 1.0) {
 }
 
 // convert a buffer to a length prefixed buffer - creates a copy
-function lpsEncode (buffer: Uint8Array | number[]) {
+function lpsEncode (buffer: ArrayLike<number>) {
   const prefix: number[] = varint.encode(buffer.length)
-  const output = Uint8Array.from([...prefix, ...buffer])
+  const output = Uint8Array.from([...prefix, ...Array.from(buffer)])
   return output
 }

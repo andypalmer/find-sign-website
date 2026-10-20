@@ -1,7 +1,7 @@
 import { expect, describe, it } from 'vitest'
-import { tokenize, parseQuery, compileQuery, QueryAuthor, getQueryRequirements } from '../src/lib/search/text'
-import type { QueryTag, QueryWord, QueryOrNode, QueryAndNode } from '../src/lib/search/text'
-import type { LibraryEntry } from '../src/lib/search/search-index'
+import { tokenize, parseQuery, compileQuery, getQueryRequirements } from '../src/lib/search/text'
+import type { QueryNode, QueryTag, QueryWord, QueryOrNode, QueryAndNode, QueryAuthor } from '../src/lib/search/text'
+import type { LoadedOrthagonalEntry } from '../src/lib/orthagonal/read'
 
 describe('/src/lib/search/text tokenize()', () => {
   it('handles simple space seperated phrases', () => {
@@ -27,28 +27,28 @@ describe('/src/lib/search/text tokenize()', () => {
 })
 
 // builders to conveniently mock syntax trees
-function and (left, right): QueryAndNode {
+function and (left: QueryNode, right: QueryNode): QueryAndNode {
   return { type: 'and', left, right }
 }
-function or (left, right): QueryOrNode {
+function or (left: QueryNode, right: QueryNode): QueryOrNode {
   return { type: 'or', left, right }
 }
-function word (string): QueryWord {
+function word (string: string): QueryWord {
   return { type: 'word', string }
 }
-function tag (string, positive = true): QueryTag {
+function tag (string: string, positive = true): QueryTag {
   return { type: 'tag', string, positive }
 }
-function author (id, positive = true): QueryAuthor {
+function author (id: string, positive = true): QueryAuthor {
   return { type: 'author', id, positive }
 }
 
-function entry (obj): LibraryEntry {
+function entry (obj: Partial<LoadedOrthagonalEntry>): LoadedOrthagonalEntry {
   return {
     words: [],
     tags: [],
-    diversity: 0,
-    path: [0, 0],
+    load: async () => { throw new Error('not loadable') },
+    indexURL: 'http://data.test/index/test',
     ...obj
   }
 }

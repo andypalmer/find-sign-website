@@ -8,11 +8,12 @@
 	const { data, xGet, yGet, xScale, yScale, extents } = getContext('LayerCake');
 
 	$: path = 'M' + $data
-		.map(d => {
+		.map((/** @type {any} */ d) => {
 			return $xGet(d) + ',' + $yGet(d);
 		})
 		.join('L');
 
+	/** @type {string} */
 	let area;
 
 	$: {

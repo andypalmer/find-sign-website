@@ -19,7 +19,7 @@ beforeEach(async () => {
 })
 
 function vectorWords (url: string) {
-  return [...parseVectors(server.get(url))].map(x => x.word).sort()
+  return [...parseVectors(server.get(url)!)].map(x => x.word).sort()
 }
 
 describe('buildSearchIndex()', () => {
@@ -37,7 +37,7 @@ describe('buildSearchIndex()', () => {
     expect(bulk[0].body.files['meta.json'].encoding).toBe('string')
 
     // every data server request carries a license signed by the write identity
-    const license = new URL(bulk[0].url).searchParams.get('license')
+    const license = new URL(bulk[0].url).searchParams.get('license') as string
     const [scheme, publicKey, signature] = license.split('-')
     expect(scheme).toBe('ed25519')
     expect(decodeHex(publicKey)).toEqual(writeKeyPair.publicKey)
@@ -70,7 +70,7 @@ describe('buildSearchIndex()', () => {
     await buildSearchIndex('alpha', quiet)
     const [cat, dog] = server.getJSON(`${IndexBase}/alpha/shard-0.json`).entries
     expect(cat.media[0].thumbnail).toBe('../../../../encoded-search-data/raw/cat-media/cat-0.webp')
-    expect(cat.media[0].encodes.map(x => x.url)).toEqual([
+    expect(cat.media[0].encodes.map((x: any) => x.url)).toEqual([
       '../../../../encoded-search-data/raw/cat-media/cat-0.mp4',
       '../../../../encoded-search-data/raw/cat-media/cat-0.webm',
     ])
@@ -96,7 +96,7 @@ describe('buildSearchIndex()', () => {
   it('looks every word up in the vector library on a normal build: one shard per word', async () => {
     const build = await freshBuild()
     await build('alpha', quiet)
-    const library = server.requestsTo(VectorLibraryBase).map(r => r.path.split('/').pop())
+    const library = server.requestsTo(VectorLibraryBase).map(r => r.path.split('/').pop() as string)
     // QUIRK: preload() caches the opened library but not the in-flight promise, so each of the
     // 3 concurrent lookup workers fetches info.json on a cold start
     expect(library.filter(x => x === 'info.json')).toHaveLength(3)
@@ -115,8 +115,8 @@ describe('buildSearchIndex()', () => {
   })
 
   it('reports progress ending at 1 and logs "Build complete"', async () => {
-    const logs = []
-    const progress = []
+    const logs: string[] = []
+    const progress: number[] = []
     await buildSearchIndex('alpha', { log: (...x) => logs.push(x.join(' ')), progress: (n) => progress.push(n) })
     expect(logs[0]).toBe('Reading search data alpha...')
     expect(logs.at(-1)).toBe('Build complete')

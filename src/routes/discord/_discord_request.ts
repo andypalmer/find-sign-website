@@ -3,7 +3,7 @@ import { bytesToString, stringToBytes } from '#lib/functions/string-encode.ts'
 import { verifyKey } from 'discord-interactions'
 import { nanoid } from 'nanoid'
 
-export async function discordRequest(endpoint, options) {
+export async function discordRequest(endpoint: string, options: { [option: string]: any }) {
   // append endpoint to root API URL
   const url = `https://discord.com/api/v10/${endpoint}`
 

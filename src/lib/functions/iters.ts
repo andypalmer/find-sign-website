@@ -17,14 +17,14 @@ export function * iterateLengthPrefixed (buffer: Uint8Array): Generator<Uint8Arr
   let cursor = 0
   while (cursor < buffer.length) {
     const length = varint.decode(buffer, cursor)
-    cursor += varint.decode.bytes
+    cursor += varint.decode.bytes as number
     yield buffer.subarray(cursor, cursor + length)
     cursor += length
   }
 }
 
 // returns an iterable which calls a callback with (index, times) `times` many times, returning the results of the callback
-export function * timesIterable (times, callback) {
+export function * timesIterable<Type> (times: number, callback: (index: number, times: number) => Type): Generator<Type> {
   if (times < 1) return
 
   let index = 0
@@ -62,7 +62,7 @@ export function * chunkIterSliceable<T> (sliceable: Sliceable<T>, chunkSize: num
 export function * chunkIterable<Type> (iterable: Iterable<Type>, chunkSize: number, maxChunks: number = Infinity): Generator<Type[]> {
   const input = iterable[Symbol.iterator]()
   while (maxChunks > 0) {
-    const chunk = []
+    const chunk: Type[] = []
     while (chunk.length < chunkSize) {
       const output = input.next()
       if (output.done) {
@@ -80,7 +80,7 @@ export function * chunkIterable<Type> (iterable: Iterable<Type>, chunkSize: numb
 export async function * chunkIterableAsync<Type> (sliceable: AsyncIterable<Type>, chunkSize: number, maxChunks: number = Infinity): AsyncGenerator<Type[]> {
   const input = sliceable[Symbol.asyncIterator]()
   while (maxChunks > 0) {
-    const chunk = []
+    const chunk: Type[] = []
     while (chunk.length < chunkSize) {
       const output = await input.next()
       if (output.done) {

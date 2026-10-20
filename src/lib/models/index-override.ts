@@ -38,7 +38,9 @@ export async function listOverrides () {
 }
 
 export async function getOverrideFor (provider: string, id: string): Promise<IndexOverride> {
-  const json = JSON.parse(bytesToString(await readFile(fn`overrides/${provider}:${id}.json`)))
+  const data = await readFile(fn`overrides/${provider}:${id}.json`)
+  if (!data) throw new Error(`No override for ${provider}:${id}`)
+  const json = JSON.parse(bytesToString(data))
   return json
 }
 

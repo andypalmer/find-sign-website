@@ -18,12 +18,13 @@ export function validateUsername (username: Username): boolean {
   return typeof username === 'string' && /^[a-z][a-z0-9_-]*$/iu.test(username)
 }
 
-export async function createUser (username: Username, data) {
+export async function createUser (username: Username, data: Partial<UserAccount>) {
   if (!validateUsername(username)) throw new Error('Unacceptable username')
   if (await getUser(username)) throw new Error('User is already registered')
   await setUser(username, {
     powers: [],
     created: (new Date()).toISOString(),
+    authenticators: {},
     ...data
   })
 }
@@ -31,7 +32,7 @@ export async function createUser (username: Username, data) {
 /** Given a credential ID, lookup user and return their information
  * if user doesn't exist, returns undefined
  */
-export async function getUser (username: Username): Promise<UserAccount> {
+export async function getUser (username: Username): Promise<UserAccount | undefined> {
   if (!validateUsername(username)) throw new Error('Unacceptable username')
   const fileData = await readFile(`users/${username}.json`)
   if (fileData === undefined) return undefined
@@ -46,6 +47,7 @@ export async function setUser (username: Username, data: UserAccount) {
 
 export async function grantPower (username: Username, power: UserEntitlement) {
   const user = await getUser(username)
+  if (!user) throw new Error('User not found')
   if (!user.powers.includes(power)) {
     user.powers.push(power)
     await setUser(username, user)
@@ -54,6 +56,7 @@ export async function grantPower (username: Username, power: UserEntitlement) {
 
 export async function removePower (username: Username, power: UserEntitlement) {
   const user = await getUser(username)
+  if (!user) throw new Error('User not found')
   if (user.powers.includes(power)) {
     user.powers = user.powers.filter(x => x !== power)
     await setUser(username, user)
@@ -62,7 +65,7 @@ export async function removePower (username: Username, power: UserEntitlement) {
 
 export async function userHasPower (username: Username, power: UserEntitlement) {
   const user = await getUser(username)
-  if (!Array.isArray(user.powers)) return false
+  if (!user || !Array.isArray(user.powers)) return false
   if (user.powers.includes(power)) return true
   if (user.powers.includes('everything')) return true
   return false

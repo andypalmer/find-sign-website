@@ -1,12 +1,12 @@
 import type { RequestHandler } from "./$types"
-import { error, json } from "@sveltejs/kit"
+import { error } from "@sveltejs/kit"
 import { isValidAnalyticsTopic, recordAnalytics } from "#lib/models/analytics.ts"
 
 export const GET: RequestHandler = async ({ url }) => {
   const topic = url.searchParams.get('topic')
-  if (!isValidAnalyticsTopic(topic)) {
+  if (topic === null || !isValidAnalyticsTopic(topic)) {
     error(500, 'unsupported topic')
   }
   await recordAnalytics(topic, 1)
-  return json({ status: 'ok' })
+  return Response.json({ status: 'ok' })
 }

@@ -1,4 +1,4 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { InteractionType, InteractionResponseType, MessageComponentTypes, ButtonStyleTypes } from 'discord-interactions'
 import { search } from '#lib/search/search.ts'
 import { getSearchLibrary } from '#lib/search/search.ts'
@@ -33,7 +33,8 @@ async function signToMessage ({ sign, request, message = '', components = [], bo
       `Auslan: “**${sign.title || sign.words.join('**”, “**')}**”`,
       `Link: <${sign.link}>`,
       // sign.body,
-      source.url
+      // no mp4 encode leaves this line empty
+      source?.url
     ].join('\n'),
     components,
     // attachments: [{
@@ -48,7 +49,7 @@ function placeholderMessage () {
   return { type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE }
 }
 
-async function runSearch (query: string, request, page = 0, bodyOverride?: any) {
+async function runSearch (query: string, request: Request, page = 0, bodyOverride?: any) {
   const { results, totalResults } = await search(`${query} -#lexis.fingerspell`, page, 1)
   if (totalResults > 0) {
     const sign = results[0]
@@ -90,11 +91,11 @@ export async function POST ({ request }: { request: Request}) {
   const { type, id, data, token, member, message } = JSON.parse(bodyText)
 
   if (type === InteractionType.PING) {
-    return json({ type: InteractionResponseType.PONG })
+    return Response.json({ type: InteractionResponseType.PONG })
   } else if (type === InteractionType.APPLICATION_COMMAND) {
     const { name, options } = data
     if (name === 'auslan') {
-      const { value: query } = options.find(x => x.name === 'query')
+      const { value: query } = options.find((x: { name: string }) => x.name === 'query')
       runSearch(query, request, 0).then(async result => {
         // PATCH `/webhooks/${DiscordAppID}/${token}/messages/@original`
         discordRequest(`webhooks/${DiscordAppID}/${token}/messages/@original`, {
@@ -105,11 +106,12 @@ export async function POST ({ request }: { request: Request}) {
 
       recordAnalytics('discord/search', 1)
 
-      return json(placeholderMessage())
+      return Response.json(placeholderMessage())
     } else if (name === 'random-auslan') {
       const [random] = await getRandomSigns(1)
       const library = await getSearchLibrary([random.index], ['id'])
-      const sign = await library[random.index].entries.find(x => x.id === random.id).load()
+      // getRandomSigns picks from these same entries
+      const sign = await library[random.index].entries.find(x => x.id === random.id)!.load()
 
       recordAnalytics('discord/random', 1)
 
@@ -119,20 +121,20 @@ export async function POST ({ request }: { request: Request}) {
         signToMessage({ sign, request, message: `<@${userId}> 🎲 rolled the dice…`}).then(message => {
           discordRequest(`webhooks/${DiscordAppID}/${token}/messages/@original`, { method: 'PATCH', body: message })
         })
-        return json(placeholderMessage())
+        return Response.json(placeholderMessage())
       } else {
         // it's a DM
         signToMessage({ sign, request, message: `You rolled the dice 🎲`}).then(message => {
           discordRequest(`webhooks/${DiscordAppID}/${token}/messages/@original`, { method: 'PATCH', body: message })
         })
-        return json(placeholderMessage())
+        return Response.json(placeholderMessage())
       }
     }
   } else if (type === InteractionType.MESSAGE_COMPONENT) {
     const { custom_id } = data
     const [command, ...opts] = custom_id.split(':')
     if (command === 'del') {
-      return json({
+      return Response.json({
         type: InteractionResponseType.UPDATE_MESSAGE,
         data: {
           content: '[ Search Result Removed ]',
@@ -141,7 +143,7 @@ export async function POST ({ request }: { request: Request}) {
         }
       })
     } else if (command === 'page') {
-      const [query, page] = opts.map(x => decodeURIComponent(x))
+      const [query, page] = opts.map((x: string) => decodeURIComponent(x))
       runSearch(query, request, parseInt(page)).then(result =>
         // discordRequest(`webhooks/${DiscordAppID}/${token}/messages/@original`, { method: 'PATCH', body: {
         //   type: InteractionResponseType.UPDATE_MESSAGE,
@@ -155,7 +157,7 @@ export async function POST ({ request }: { request: Request}) {
         })
       )
 
-      return json({ type: InteractionResponseType.DEFERRED_UPDATE_MESSAGE })
+      return Response.json({ type: InteractionResponseType.DEFERRED_UPDATE_MESSAGE })
     }
   }
 

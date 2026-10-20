@@ -59,7 +59,7 @@ export async function createSoftAuthenticator ({ origin, rpID }: { origin: strin
     /** respond to registration options, as navigator.credentials.create() would */
     async register (options: { challenge: string }) {
       const jwk = await subtle.exportKey('jwk', keyPair.publicKey)
-      const coseKey = cbor(new Map<number, any>([[1, 2], [3, -7], [-1, 1], [-2, fromB64url(jwk.x)], [-3, fromB64url(jwk.y)]]))
+      const coseKey = cbor(new Map<number, any>([[1, 2], [3, -7], [-1, 1], [-2, fromB64url(jwk.x as string)], [-3, fromB64url(jwk.y as string)]]))
       const attestedCredentialData = concat(new Uint8Array(16), Uint8Array.of(0, credentialID.length), credentialID, coseKey)
       const authData = concat(rpIdHash, Uint8Array.of(flags | 0x40), uint32(counter), attestedCredentialData)
       const attestationObject = cbor(new Map<string, any>([['fmt', 'none'], ['attStmt', new Map()], ['authData', authData]]))
@@ -77,7 +77,7 @@ export async function createSoftAuthenticator ({ origin, rpID }: { origin: strin
     },
 
     /** respond to authentication options, as navigator.credentials.get() would */
-    async authenticate (options: { challenge: string }, { userHandle = undefined, origin: overrideOrigin = undefined } = {}) {
+    async authenticate (options: { challenge: string }, { userHandle = undefined, origin: overrideOrigin = undefined }: { userHandle?: string, origin?: string } = {}) {
       counter += 1
       const authData = concat(rpIdHash, Uint8Array.of(flags), uint32(counter))
       const clientDataJSON = overrideOrigin

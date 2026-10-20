@@ -10,6 +10,10 @@
 
   const fire = createEventDispatcher()
 
+  // fields are looked up by name
+  const entryFields = entry as { [field: string]: any }
+  const overrideFields = override as { [field: string]: any }
+
   const knownTags = [
     'established', 'invented', 'description'
   ]
@@ -41,16 +45,16 @@
   for (const field of fields) {
     if (field.name in override) {
       field.override = true
-      field.value = override[field.name] || undefined
+      field.value = overrideFields[field.name] || undefined
     } else {
       field.override = false
-      field.value = entry[field.name] || undefined
+      field.value = entryFields[field.name] || undefined
     }
   }
 
   function updateOverride () {
     for (const field of fields) {
-      if (!field.override) field.value = entry[field.name] || undefined
+      if (!field.override) field.value = entryFields[field.name] || undefined
     }
     override = Object.fromEntries(fields.filter(x => x.override).map(x => [x.name, x.value]))
     fire('change', { override })

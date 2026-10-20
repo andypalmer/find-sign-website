@@ -1,12 +1,12 @@
 import type { RequestHandler} from './$types'
-import { encode } from 'pigeonmark-xml'
+import { encode, type PigeonMark } from 'pigeonmark-xml'
 
-function rel(base, path) {
+function rel(base: URL, path: string) {
   return new URL(path, base).toString()
 }
 
 export const GET: RequestHandler = async ({url}) => {
-  const xml =
+  const xml: PigeonMark =
     ['OpenSearchDescription', { xmlns: 'http://a9.com/-/spec/opensearch/1.1/' },
       ['ShortName', 'Find Sign'],
       ['LongName', 'Search Find Sign'],

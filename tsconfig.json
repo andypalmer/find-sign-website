@@ -1,9 +1,5 @@
 {
 	"extends": "$app/tsconfig",
-	"compilerOptions": {
-		// TypeScript 6 enables strict by default; this codebase predates it
-		"strict": false
-	},
 	"include": [
 		"src",
 		"vite.config.js",

@@ -45,7 +45,7 @@ describe('loadIndex()', () => {
     const [kitten, redTruck] = index.entries
     expect(kitten.words).toEqual(['Kitten'])
     expect(kitten.vectors).toHaveLength(1)
-    expect(Array.from(kitten.vectors[0] as Float32Array, x => Math.round(x * 10) / 10)).toEqual(wordVectors.kitten)
+    expect(Array.from(kitten.vectors![0] as Float32Array, x => Math.round(x * 10) / 10)).toEqual(wordVectors.kitten)
     expect(redTruck.vectors).toHaveLength(2)
   })
 

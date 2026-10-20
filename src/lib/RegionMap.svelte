@@ -1,10 +1,10 @@
 <!-- builds a map svg image of the country, representing which regions are specified for this sign -->
-<script>
+<script lang="ts">
   import { createEventDispatcher } from 'svelte'
 
   const regions = ['wa', 'nt', 'sa', 'qld', 'nsw', 'vic', 'tas']
   import url from '#lib/assets/auslan-map.svg'
-  export let tags = []
+  export let tags: string[] = []
   export let width = '100%'
   export let height = '100%'
   export let editable = false
@@ -13,7 +13,7 @@
   const fire = createEventDispatcher()
 
   // if editable, toggle regions when they're clicked
-  function click (clickRegion) {
+  function click (clickRegion: string) {
     if (editable && autoToggle) {
       // toggle the tag
       if (tags.includes(clickRegion)) tags = tags.filter(x => x != clickRegion)

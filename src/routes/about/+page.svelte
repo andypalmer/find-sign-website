@@ -8,8 +8,8 @@
 
   export let data: PageData
 
-  function searchURL (query) {
-    return `/search?${new URLSearchParams(Object.entries({ query, page: 0 }))}`
+  function searchURL (query: string) {
+    return `/search?${new URLSearchParams({ query, page: '0' })}`
   }
 
   onMount(() => {

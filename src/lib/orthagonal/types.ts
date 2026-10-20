@@ -61,9 +61,9 @@ export function validateEncodedSearchDataEntry (entry: EncodedSearchDataEntry) {
   }
 }
 
-export function isEncodedSearchDataEntry (entry): entry is EncodedSearchDataEntry {
+export function isEncodedSearchDataEntry (entry: unknown): entry is EncodedSearchDataEntry {
   try {
-    validateEncodedSearchDataEntry(entry)
+    validateEncodedSearchDataEntry(entry as EncodedSearchDataEntry)
     return true
   } catch (err) {
     return false
@@ -92,9 +92,9 @@ export function validateSearchDataEncodedMedia (entry: SearchDataEncodedMedia) {
   }
 }
 
-export function isSearchDataEncodedMedia (entry): entry is SearchDataEncodedMedia {
+export function isSearchDataEncodedMedia (entry: unknown): entry is SearchDataEncodedMedia {
   try {
-    validateSearchDataEncodedMedia(entry)
+    validateSearchDataEncodedMedia(entry as SearchDataEncodedMedia)
     return true
   } catch (err) {
     return false
@@ -126,9 +126,9 @@ export function validateSearchDataEncode (entry: SearchDataEncode) {
   if (entry.duration <= 0) throw new Error('encode duration is negative or zero')
 }
 
-export function isSearchDataEncode (entry): entry is SearchDataEncode {
+export function isSearchDataEncode (entry: unknown): entry is SearchDataEncode {
   try {
-    validateSearchDataEncode(entry)
+    validateSearchDataEncode(entry as SearchDataEncode)
     return true
   } catch (err) {
     return false

@@ -1,4 +1,4 @@
-import { json, type RequestEvent, type RequestHandler } from "@sveltejs/kit"
+import { type RequestEvent, type RequestHandler } from "@sveltejs/kit"
 import {
   generateRegistrationOptions, generateAuthenticationOptions,
   verifyRegistrationResponse, verifyAuthenticationResponse, type GenerateAuthenticationOptionsOpts
@@ -90,7 +90,7 @@ export default function createAuthEndpoint (endpointOptions: AuthEndpointOptions
           userDisplayName: username,
           challenge
         })
-        return json({ action: 'register', options, challenge })
+        return Response.json({ action: 'register', options, challenge })
       } else {
         // account exists, login flow
         const genOpts: GenerateAuthenticationOptionsOpts = { rpID, challenge }
@@ -100,7 +100,7 @@ export default function createAuthEndpoint (endpointOptions: AuthEndpointOptions
           })
         }
         const options = await generateAuthenticationOptions(genOpts)
-        return json({ action: 'login', options, challenge })
+        return Response.json({ action: 'login', options, challenge })
       }
     } else if (req.type === 'login') {
       const { attestation } = req
@@ -188,9 +188,10 @@ export default function createAuthEndpoint (endpointOptions: AuthEndpointOptions
     }
   }
 
-  function failedResponse (action: string, username: string, err: Error, event: RequestEvent): Response {
-    console.info(`${action} failed for "${username}" from ${event.getClientAddress()}: ${err.message}`)
-    return json({ verified: false, reason: err.message })
+  function failedResponse (action: string, username: string, err: unknown, event: RequestEvent): Response {
+    const reason = err instanceof Error ? err.message : String(err)
+    console.info(`${action} failed for "${username}" from ${event.getClientAddress()}: ${reason}`)
+    return Response.json({ verified: false, reason })
   }
 
   function generateToken (tokenData: any): string {

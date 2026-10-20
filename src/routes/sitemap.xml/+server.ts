@@ -9,9 +9,9 @@ const staticPages = [
   '/feeds/discovery.rss',
 ]
 
-function lastmod (timestamp) {
+function lastmod (timestamp: number) {
   const date = new Date(timestamp)
-  const prefix = (str) => `00${str}`.slice(-2)
+  const prefix = (str: number) => `00${str}`.slice(-2)
   return `<lastmod>${date.getUTCFullYear()}-${prefix(date.getUTCMonth() + 1)}-${prefix(date.getUTCDate())}</lastmod>`
 }
 
@@ -32,7 +32,7 @@ export async function GET ({ url }) {
     },
     async pull (controller) {
       if (indexes.length > 0) {
-        const index = indexes.shift()
+        const index = indexes.shift() as string
 
         const libraries = await getSearchLibrary([index], ['id', 'timestamp'])
         const lib = libraries[index]

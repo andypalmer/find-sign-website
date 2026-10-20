@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   return {
     username: locals.username,
-    powers: [],
-    ...user
+    ...user,
+    powers: user.powers ?? []
   }
 }

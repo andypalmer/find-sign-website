@@ -19,7 +19,8 @@ export const load: PageLoad = async function load ({ url, fetch }) {
     return { redirect: redirectURL }
   }
   const library = await getSearchLibrary([randoms[0].index], ['id'])
-  const result = await library[randoms[0].index].entries.find(x => x.id === randoms[0].id).load()
+  // getRandomSigns picks from these same entries
+  const result = await library[randoms[0].index].entries.find(x => x.id === randoms[0].id)!.load()
   const next = `/random?${new URLSearchParams([['index', randoms[1].index], ['id', randoms[1].id]])}`
   const permalink = fn`/sign/${randoms[0].index}/${randoms[0].id}`
 

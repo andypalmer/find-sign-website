@@ -22,7 +22,7 @@ export const load: PageServerLoad = immediateResponseCache(async ({ url, setHead
   const feed = [...searchFeed.items.map(x => ({
     author: x.authors[0],
     verb: x.__fs_verb,
-    title: x.__fs_words.join(' '),
+    title: (x.__fs_words ?? []).join(' '),
     date: x.date_published,
     cacheURL: x.url,
     remoteURL: x.external_url

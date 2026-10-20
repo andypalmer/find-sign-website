@@ -1,8 +1,9 @@
 import { build as buildVectorShard } from '#lib/search/precomputed-vectors.ts'
-import type { OrthagonalColumns, EncodedSearchData, OrthagonalIndex } from './types'
+import type { OrthagonalColumns, EncodedSearchData, EncodedSearchDataEntry, OrthagonalIndex } from './types'
 import normalizeWord from './normalize-word'
 import { chunk, times } from '#lib/functions/iters.ts'
 import { nanoid } from 'nanoid'
+import type { Vector } from '#lib/functions/vector-utilities.ts'
 
 /** read an encoded-search-data from a url, transforming all URLs to be absolute */
 export async function readEncodedSearchData (url: string): Promise<EncodedSearchData> {
@@ -12,8 +13,9 @@ export async function readEncodedSearchData (url: string): Promise<EncodedSearch
     const entry = json[id] = {
       id: id,
       published: true,
-      ...json[id]
-    }
+      // search-data files don't usually include the id, it's the key
+      ...(json[id] as Partial<EncodedSearchDataEntry>)
+    } as EncodedSearchDataEntry
     if (!entry.title && entry.words) {
       entry.title = entry.words.join(', ')
     }
@@ -56,7 +58,13 @@ export async function readEncodedSearchData (url: string): Promise<EncodedSearch
   return json
 }
 
-export async function writeIndex (searchData: EncodedSearchData, { lookupVector, log = undefined, progress = undefined }) {
+export type WriteIndexOptions = {
+  lookupVector: (word: string) => Promise<Vector | undefined>,
+  log?: (...things: any[]) => void,
+  progress?: (value: number) => void,
+}
+
+export async function writeIndex (searchData: EncodedSearchData, { lookupVector, log = undefined, progress = undefined }: WriteIndexOptions) {
   const exportedColumns: OrthagonalColumns = {
     id: { type: 'string', path: 'id.json' },
     title: { type: 'string', path: 'title.json' },
@@ -78,7 +86,7 @@ export async function writeIndex (searchData: EncodedSearchData, { lookupVector,
   }
 
   // setup empty arrays for the exports
-  const exportDatas = Object.fromEntries(Object.keys(exportedColumns).map(columnName => [columnName, {
+  const exportDatas: { [columnName: string]: { buildID: string, entries: any[] } } = Object.fromEntries(Object.keys(exportedColumns).map(columnName => [columnName, {
     buildID: indexFile.buildID,
     entries: []
   }]))
@@ -86,7 +94,7 @@ export async function writeIndex (searchData: EncodedSearchData, { lookupVector,
   if (progress) progress(0.01)
   if (log) log('Building metadata...')
 
-  const outputFiles = { 'meta.json': JSON.stringify(indexFile) }
+  const outputFiles: { [path: string]: string | Uint8Array } = { 'meta.json': JSON.stringify(indexFile) }
 
   if (progress) progress(0.02)
   if (log) log('Building shards and orthagonal views...')
@@ -97,7 +105,7 @@ export async function writeIndex (searchData: EncodedSearchData, { lookupVector,
     outputFiles[`shard-${shardNum}.json`] = JSON.stringify({
       buildID: indexFile.buildID,
       entries: entryIDs.map(id => {
-        const output = { id, ...searchData[id] }
+        const output: { [key: string]: any } = { id, ...(searchData[id] as Partial<EncodedSearchDataEntry>) }
         for (const key in exportedColumns) {
           const value = output[key]
           exportDatas[key].entries.push(value === undefined ? null : value)
@@ -124,10 +132,10 @@ export async function writeIndex (searchData: EncodedSearchData, { lookupVector,
 
   const wordsQueue = [...uniqueWords]
   let wordsLookedUp = 0
-  const vectorIndex = {}
+  const vectorIndex: { [word: string]: Vector } = {}
   await Promise.all([...times(3, async () => {
     while (wordsQueue.length) {
-      const word = wordsQueue.shift()
+      const word = wordsQueue.shift() as string
       const vector = await lookupVector(word)
       if (vector) vectorIndex[word] = vector
       wordsLookedUp += 1

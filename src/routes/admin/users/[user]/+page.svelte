@@ -8,11 +8,11 @@
 
   let newPower = ''
 
-  function removePower (power) {
+  function removePower (power: string) {
     user.powers = user.powers.filter(p => p !== power)
   }
 
-  async function update (event) {
+  async function update (event: SubmitEvent) {
     event.preventDefault()
     const response = await fetch('', {
       method: 'PUT',

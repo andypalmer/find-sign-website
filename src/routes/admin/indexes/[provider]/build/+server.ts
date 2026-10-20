@@ -1,4 +1,3 @@
-import { json } from '@sveltejs/kit'
 import { writeAuditLog, type AuditExtraData } from '#lib/models/audit-log.ts'
 import { fn } from '#lib/models/filename-codec.ts'
 import { userHasPower } from '#lib/models/user.ts'
@@ -33,5 +32,5 @@ export const POST: RequestHandler = async ({ locals, params, url }) => {
     await buildSearchIndex(params.provider, { log, progress, fast })
   })
 
-  return json({ progress })
+  return Response.json({ progress })
 }

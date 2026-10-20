@@ -73,7 +73,7 @@ describe('passkey login', () => {
     const { json } = await post({ type: 'start', username: 'alice', autofill: false })
     expect(json.action).toBe('login')
     expect(json.options.rpId).toBe(rpID)
-    expect(json.options.allowCredentials.map(x => x.id)).toEqual([authenticator.id])
+    expect(json.options.allowCredentials.map((x: { id: string }) => x.id)).toEqual([authenticator.id])
   })
 
   it('verifies the assertion, updates the counter, and sets a session cookie', async () => {

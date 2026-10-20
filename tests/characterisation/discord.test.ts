@@ -17,7 +17,7 @@ function interaction (body: object, { secretKey = discordKeyPair.secretKey, head
   })
 }
 
-async function post (request: Request) {
+async function post (request: Request): Promise<any> {
   try {
     return await POST({ request })
   } catch (err) {

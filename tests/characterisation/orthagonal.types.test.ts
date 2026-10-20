@@ -17,7 +17,7 @@ describe('validateEncodedSearchDataEntry()', () => {
     ['body', 'entry does not have a body string'],
     ['media', 'entry does not have a media array'],
   ])('rejects a missing %s', (field, message) => {
-    const entry = valid()
+    const entry: { [field: string]: any } = valid()
     delete entry[field]
     expect(() => validateEncodedSearchDataEntry(entry as any)).toThrow(message)
   })
