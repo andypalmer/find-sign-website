@@ -98,6 +98,9 @@ describe('user model', () => {
   it('accepts usernames that start with a letter, then letters, digits, _ and -', () => {
     expect(['alice', 'Bob_2', 'c-d'].map(validateUsername)).toEqual([true, true, true])
     expect(['', '2bob', 'a b', 'a.b', '../x'].map(validateUsername)).toEqual([false, false, false, false, false])
+    // every line of a multi-line name used to be checked separately, letting path segments through
+    expect(validateUsername('alice\n../users/x')).toBe(false)
+    expect(validateUsername(undefined)).toBe(false)
   })
 
   it('stores users as users/<name>.json with empty powers and a created timestamp', async () => {

@@ -37,10 +37,11 @@ export async function discordRequest(endpoint, options) {
   return res;
 }
 
-export function isValidReq (req: Request, bodyText: string): boolean {
+export async function isValidReq (req: Request, bodyText: string): Promise<boolean> {
   const signature = req.headers.get('X-Signature-Ed25519')
   const timestamp = req.headers.get('X-Signature-Timestamp')
-  return verifyKey(bodyText, signature, timestamp, DiscordPublicKey)
+  if (!signature || !timestamp) return false
+  return await verifyKey(bodyText, signature, timestamp, DiscordPublicKey)
 }
 
 type PayloadFile = {

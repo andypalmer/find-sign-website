@@ -1,12 +1,16 @@
-import type { RequestEvent, RequestHandler } from "@sveltejs/kit"
+import { json, type RequestEvent, type RequestHandler } from "@sveltejs/kit"
 import {
   generateRegistrationOptions, generateAuthenticationOptions,
   verifyRegistrationResponse, verifyAuthenticationResponse, type GenerateAuthenticationOptionsOpts
 } from "@simplewebauthn/server"
-import { parse as cookieParse, serialize as cookieSerialize } from 'cookie'
-import { encodeHex, decodeHex, encodeUTF8, decodeUTF8, sign_open, sign_keyPair_fromSecretKey, sign_keyPair, sign, decodeBase64 } from "tweetnacl-ts"
+import { isoBase64URL, isoUint8Array } from "@simplewebauthn/server/helpers"
+import { encodeHex, decodeHex, encodeUTF8, decodeUTF8, sign_open, sign_keyPair_fromSecretKey, sign_keyPair, sign } from "tweetnacl-ts"
 
 type MaybePromise<T> = Promise<T> | T
+
+// how long a login/registration challenge stays valid, and how far in the future one may claim to be
+const ChallengeMaxAge = 5 * 60 * 1000
+const ChallengeClockSkew = 60 * 1000
 
 export type AuthEndpointOptions = {
   rpName: string, // name of relying party (i.e. site's name)
@@ -57,15 +61,9 @@ export default function createAuthEndpoint (endpointOptions: AuthEndpointOptions
     const session = endpointOptions.newSession
       ? endpointOptions.newSession(username, event)
       : { username, ts: Math.round(Date.now() / 1000) }
-    return new Response(JSON.stringify({ verified, session }), {
-      headers: {
-        'Set-Cookie': cookieSerialize('token', generateToken(session), {
-          path: '/',
-          maxAge: cookieMaxAge,
-          httpOnly: true
-        })
-      }
-    })
+    // sveltekit adds this to the response (httpOnly, sameSite lax, and secure except on http://localhost)
+    event.cookies.set('token', generateToken(session), { path: '/', maxAge: cookieMaxAge })
+    return new Response(JSON.stringify({ verified, session }))
   }
 
   const POST: RequestHandler = async function POST (event) {
@@ -79,103 +77,120 @@ export default function createAuthEndpoint (endpointOptions: AuthEndpointOptions
       // get user object if user already exists and is specified
       const userObj = !autofill && username ? await endpointOptions.getUser(username) : undefined
 
-      const challenge = generateToken({ ts: Date.now() })
+      const challenge = generateToken({ challenge: true, ts: Date.now() })
 
       if (!userObj && username) {
         // account doesn't exist, register flow
-        const options = generateRegistrationOptions({
+        const options = await generateRegistrationOptions({
           rpID,
           rpName,
-          userID: username,
+          // user handle is the utf-8 username, as passkeys registered before simplewebauthn v10 have
+          userID: isoUint8Array.fromUTF8String(username),
           userName: username,
           userDisplayName: username,
           challenge
         })
-        return new Response(JSON.stringify({ action: 'register', options, challenge }), { headers: { 'Content-Type': 'application/json' } })
+        return json({ action: 'register', options, challenge })
       } else {
         // account exists, login flow
         const genOpts: GenerateAuthenticationOptionsOpts = { rpID, challenge }
         if (userObj) {
           genOpts.allowCredentials = Object.values(userObj.authenticators).map(authenticator => {
-            return { type: 'public-key', id: Buffer.from(authenticator.credentialID) }
+            return { id: isoBase64URL.fromBuffer(Uint8Array.from(authenticator.credentialID)) }
           })
         }
-        const options = generateAuthenticationOptions(genOpts)
-        return new Response(JSON.stringify({ action: 'login', options, challenge }), { headers: { 'Content-Type': 'application/json' } })
+        const options = await generateAuthenticationOptions(genOpts)
+        return json({ action: 'login', options, challenge })
       }
     } else if (req.type === 'login') {
-      const { username, autofill, attestation } = req
-      const userObj = await endpointOptions.getUser(username)
-      if (!userObj) throw new Error('User not found')
-      if (!userObj.authenticators[attestation.id]) throw new Error('Passkey not found in user account')
+      const { attestation } = req
+      // with autofill the user picks a passkey without typing a username, so it comes from the
+      // passkey's user handle. Either way, the signature must verify against that user's stored passkey
+      const username = req.username || (attestation?.response?.userHandle && isoBase64URL.toUTF8String(attestation.response.userHandle))
+      try {
+        const userObj = username ? await endpointOptions.getUser(username) : undefined
+        if (!userObj) throw new Error('User not found')
+        const stored = userObj.authenticators[attestation.id]
+        if (!stored) throw new Error('Passkey not found in user account')
 
-      const authenticator = {
-        credentialID: Buffer.from(userObj.authenticators[attestation.id].credentialID),
-        credentialPublicKey: Buffer.from(userObj.authenticators[attestation.id].credentialPublicKey),
-        counter: userObj.authenticators[attestation.id].counter
-      }
-      const verification = verifyAuthenticationResponse({
-        authenticator,
-        credential: attestation,
-        expectedChallenge (challenge: string) {
-          const challengeData = verifyToken(encodeUTF8(decodeBase64(challenge)))
-          if (!challengeData) return false
-          return true
-        },
-        expectedOrigin: origin,
-        expectedRPID: rpID,
-      })
-
-      if (verification.verified) {
-        const authenticator = userObj.authenticators[attestation.id]
+        const verification = await verifyAuthenticationResponse({
+          credential: {
+            id: isoBase64URL.fromBuffer(Uint8Array.from(stored.credentialID)),
+            publicKey: Uint8Array.from(stored.credentialPublicKey),
+            counter: stored.counter
+          },
+          response: attestation,
+          expectedChallenge: isServerChallenge,
+          expectedOrigin: origin,
+          expectedRPID: rpID,
+          // matches simplewebauthn v5's default; options ask for userVerification 'preferred'
+          requireUserVerification: false,
+        })
+        if (!verification.verified) throw new Error('Passkey verification failed')
 
         // update authenticator data in database
-        authenticator.counter = verification.authenticationInfo.newCounter
-        authenticator.credentialDeviceType = verification.authenticationInfo.credentialDeviceType
-        authenticator.credentialBackedUp = verification.authenticationInfo.credentialBackedUp
-        authenticator.lastUsed = (new Date()).toISOString()
-
+        stored.counter = verification.authenticationInfo.newCounter
+        stored.credentialDeviceType = verification.authenticationInfo.credentialDeviceType
+        stored.credentialBackedUp = verification.authenticationInfo.credentialBackedUp
+        stored.lastUsed = (new Date()).toISOString()
         await endpointOptions.updateUser(username, userObj, event)
 
         return loginSuccessResponse(username, event)
-      } else {
-        return new Response(JSON.stringify({ verified: false }), { headers: { 'Content-Type': 'application/json' } })
+      } catch (err) {
+        return failedResponse('Login', username, err, event)
       }
 
     } else if (req.type === 'register') {
-      const { username, autofill, attestation } = req
+      const { username, attestation } = req
+      try {
+        const verification = await verifyRegistrationResponse({
+          response: attestation,
+          expectedChallenge: isServerChallenge,
+          expectedOrigin: origin,
+          expectedRPID: rpID,
+          // matches simplewebauthn v5's default; options ask for userVerification 'preferred'
+          requireUserVerification: false,
+        })
+        if (!verification.verified) throw new Error('Passkey verification failed')
 
-      const verification = await verifyRegistrationResponse({
-        credential: attestation,
-        expectedChallenge (challenge: string) {
-          const challengeData = verifyToken(encodeUTF8(decodeBase64(challenge)))
-          if (!challengeData) return false
-          return true
-        },
-        expectedOrigin: origin,
-        expectedRPID: rpID,
-      })
-
-      if (verification.verified) {
+        const { credential } = verification.registrationInfo
         await endpointOptions.createUser(username, {
           authenticators: {
             [attestation.id]: {
-              credentialID: [...verification.registrationInfo.credentialID],
-              credentialPublicKey: [...verification.registrationInfo.credentialPublicKey],
+              credentialID: [...isoBase64URL.toBuffer(credential.id)],
+              credentialPublicKey: [...credential.publicKey],
               credentialType: verification.registrationInfo.credentialType,
               credentialDeviceType: verification.registrationInfo.credentialDeviceType,
               credentialBackedUp: verification.registrationInfo.credentialBackedUp,
-              counter: verification.registrationInfo.counter,
+              counter: credential.counter,
               lastUsed: (new Date()).toISOString()
             }
           }
         }, event)
         return loginSuccessResponse(username, event)
+      } catch (err) {
+        return failedResponse('Registration', username, err, event)
       }
-
     }
 
     return new Response('unknown request type', { headers: { 'Content-Type': 'text/plain' } })
+  }
+
+  /** was this webauthn challenge (base64url of the utf-8 token) issued by this server, recently? */
+  function isServerChallenge (challenge: string): boolean {
+    try {
+      const data = verifyToken(isoBase64URL.toUTF8String(challenge))
+      if (!data || data.challenge !== true || typeof data.ts !== 'number') return false
+      const age = Date.now() - data.ts
+      return age >= -ChallengeClockSkew && age <= ChallengeMaxAge
+    } catch (err) {
+      return false
+    }
+  }
+
+  function failedResponse (action: string, username: string, err: Error, event: RequestEvent): Response {
+    console.info(`${action} failed for "${username}" from ${event.getClientAddress()}: ${err.message}`)
+    return json({ verified: false, reason: err.message })
   }
 
   function generateToken (tokenData: any): string {
@@ -196,11 +211,11 @@ export default function createAuthEndpoint (endpointOptions: AuthEndpointOptions
   }
 
   function getSession (event: RequestEvent) {
-    const cookies = cookieParse(event.request.headers.get('cookie') || '')
+    const token = event.cookies.get('token')
 
     // verify and parse login cookie tokens if user is passkey logged in
-    if (cookies.token) {
-      const sessionData = verifyToken(cookies.token)
+    if (token) {
+      const sessionData = verifyToken(token)
       if (sessionData) {
         if (endpointOptions.verifySession) {
           if (!endpointOptions.verifySession(sessionData)) return {}

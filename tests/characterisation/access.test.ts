@@ -4,6 +4,7 @@ import '../helpers/test-env'
 import { AutomationKey, DataBase, passkeyKeyPair } from '../helpers/test-env'
 import { expect, describe, it, beforeEach, vi } from 'vitest'
 import { FakeDataServer } from '../helpers/fake-data-server'
+import { event } from '../helpers/fake-event'
 import { publishSearchData, publishVectorLibrary } from '../helpers/fixtures'
 import { encodeHex, decodeUTF8, sign } from 'tweetnacl-ts'
 import { isRedirect } from '@sveltejs/kit'
@@ -21,6 +22,7 @@ import * as auditLog from '../../src/routes/admin/audit-log/+page.server'
 import * as auditFeed from '../../src/routes/admin/audit-log/feed.json/+server'
 import * as validate from '../../src/routes/admin/indexes/[provider]/validate/+server'
 import * as automationBuild from '../../src/routes/automation/build-index/[provider=provider]/+server'
+import * as logout from '../../src/routes/admin/logout/+server'
 
 let server: FakeDataServer
 
@@ -34,17 +36,6 @@ beforeEach(async () => {
 
 function token (session: object) {
   return encodeHex(sign(decodeUTF8(JSON.stringify(session)), passkeyKeyPair.secretKey))
-}
-
-function event ({ cookie = '', url = 'http://site.test/admin', username = undefined, params = {}, body = undefined, method = 'GET' } = {}) {
-  return {
-    url: new URL(url),
-    params,
-    locals: username ? { username } : {},
-    getClientAddress: () => '127.0.0.1',
-    setHeaders: () => {},
-    request: new Request(url, { method, headers: { cookie }, body: body && JSON.stringify(body) }),
-  } as any
 }
 
 const asUser = (username: string, extra = {}) => event({ username, ...extra })
@@ -140,6 +131,16 @@ describe('audit log pages', () => {
       'admin performed a edit-user action: change 2',
       'admin performed a edit-user action: change 3',
     ])
+  })
+})
+
+describe('admin/logout', () => {
+  it('deletes the session cookie and redirects home', async () => {
+    const e = event()
+    const response = await logout.GET(e)
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe('/')
+    expect(e.cookies.writes).toEqual([{ op: 'delete', name: 'token', opts: { path: '/' } }])
   })
 })
 

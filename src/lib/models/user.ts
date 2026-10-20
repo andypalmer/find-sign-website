@@ -14,10 +14,8 @@ export type UserAccount = {
 }
 
 export function validateUsername (username: Username): boolean {
-  if (username.match(/^[a-z][a-z0-9_-]*$/gmiu)) {
-    return true
-  }
-  return false
+  // no m flag: ^ and $ must match the whole string, not just one line of it
+  return typeof username === 'string' && /^[a-z][a-z0-9_-]*$/iu.test(username)
 }
 
 export async function createUser (username: Username, data) {

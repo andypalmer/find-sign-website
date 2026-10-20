@@ -8,10 +8,6 @@
   export let autocomplete: string[] = []
   export let label: string = ''
 
-  function onTags (event) {
-    value = [...event.detail.tags]
-  }
-
   function toDatetime (epoch: number): string {
     var isoString = (new Date(epoch)).toISOString()
     return isoString.substring(0, (isoString.indexOf("T")|0) + 6|0)
@@ -28,11 +24,10 @@
   <TagsInput
     id={name}
     name={name}
-    tags={value}
+    bind:tags={value}
     addKeys={[13, 108, 32]}
     onlyUnique
-    autoComplete={autocomplete}
-    on:tags={onTags} />
+    autoComplete={autocomplete} />
 {:else if type === 'text'}
   <textarea bind:value={value} id={name} name={name}></textarea>
 {:else if type === 'boolean'}

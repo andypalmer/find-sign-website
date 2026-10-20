@@ -3,7 +3,7 @@
   import { onMount } from 'svelte'
 
   import {
-    browserSupportsWebauthn, browserSupportsWebAuthnAutofill,
+    browserSupportsWebAuthn, browserSupportsWebAuthnAutofill,
     startAuthentication, startRegistration
   } from '@simplewebauthn/browser'
 
@@ -32,13 +32,13 @@
   async function doAuthFlow (autofill = false) {
     const { action, options } = await fetchEndpoint({ type: 'start', username, autofill })
     if (action === 'login') {
-      const attestation = await startAuthentication(options, autofill)
+      const attestation = await startAuthentication({ optionsJSON: options, useBrowserAutofill: autofill })
       console.log('attestation', attestation)
       const { verified, session } = await fetchEndpoint({ type: 'login', username, autofill, attestation })
       console.log({ verified, session })
       return verified
     } else if (action === 'register') {
-      const attestation = await startRegistration(options)
+      const attestation = await startRegistration({ optionsJSON: options })
       console.log('attestation', attestation)
       const { verified, session } = await fetchEndpoint({ type: 'register', username, autofill, attestation })
       console.log({ verified, session })
@@ -57,8 +57,8 @@
   }
 
   onMount(async () => {
-    webauthnAvailable = browserSupportsWebauthn()
-    if (browserSupportsWebAuthnAutofill()) {
+    webauthnAvailable = browserSupportsWebAuthn()
+    if (await browserSupportsWebAuthnAutofill()) {
       try {
         const result = await doAuthFlow(true)
         if (result) {

@@ -2,6 +2,7 @@
 import { readFile, writeFile } from "$lib/data-io/data-io"
 import { bytesToString } from "$lib/functions/string-encode"
 import createAuthEndpoint from "$lib/passkey/endpoint"
+import { validateUsername } from "$lib/models/user"
 import { redirect } from "@sveltejs/kit"
 
 const RelyingPartyName = 'Find Sign'
@@ -10,7 +11,9 @@ const authEndpoint = createAuthEndpoint({
   rpName: import.meta.env.VITE_VERSION_LABEL ? `${RelyingPartyName} (${import.meta.env.VITE_VERSION_LABEL})` : RelyingPartyName,
   secretKey: import.meta.env.VITE_PASSKEY_CHALLENGE_SECRET,
 
+  // usernames become data server paths, and can come from the client or a passkey's user handle
   async getUser(username) {
+    if (!validateUsername(username)) return undefined
     const fileData = await readFile(`users/${username}.json`)
     if (fileData) {
       const object = JSON.parse(bytesToString(fileData))
@@ -19,6 +22,7 @@ const authEndpoint = createAuthEndpoint({
   },
 
   async createUser(username, data) {
+    if (!validateUsername(username)) throw new Error('Unacceptable username')
     if ((await readFile(`users/${username}.json`)) !== undefined) {
       throw new Error('Username already in use')
     }
@@ -30,6 +34,7 @@ const authEndpoint = createAuthEndpoint({
   },
 
   async updateUser(username, data) {
+    if (!validateUsername(username)) throw new Error('Unacceptable username')
     await writeFile(`users/${username}.json`, JSON.stringify(data))
   }
 })

@@ -16,6 +16,9 @@ export const writeIdentity = `${encodeHex(writeKeyPair.publicKey)}-${encodeHex(w
 // deterministic passkey session signing key
 export const passkeyKeyPair = sign_keyPair_fromSeed(new Uint8Array(32).fill(9))
 
+// stands in for discord's interaction signing key
+export const discordKeyPair = sign_keyPair_fromSeed(new Uint8Array(32).fill(11))
+
 Object.assign(process.env, {
   VITE_LOCALE: 'en-AU',
   VITE_VECTOR_INDEX: VectorLibraryBase,
@@ -29,4 +32,5 @@ Object.assign(process.env, {
   VITE_SEARCH_WRITE_IDENTITY: writeIdentity,
   VITE_PASSKEY_CHALLENGE_SECRET: encodeHex(passkeyKeyPair.secretKey),
   VITE_AUTOMATION_KEY: AutomationKey,
+  VITE_DISCORD_PUBLIC_KEY: encodeHex(discordKeyPair.publicKey),
 })
