@@ -12,7 +12,7 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w apps/site",
+    "dev": "npm run dev -w apps/search",
     "dev:admin": "npm run dev -w apps/admin",
     "build": "npm run build --workspaces --if-present",
     "check": "npm run check --workspaces --if-present",

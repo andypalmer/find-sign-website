@@ -7,14 +7,15 @@ import normalizeWord from '#lib/orthagonal/normalize-word.ts'
 import { fn } from '#lib/models/filename-codec.ts'
 import openGlobalVectors from './global-vectors'
 import type { WordVector } from './precomputed-vectors'
+import { SEARCH_DATA, SEARCH_INDEX_NAME, SEARCH_INDEXES } from '$app/env/public'
 
 // the name of the overall index collection, to seperate prod builds from beta and tonino (phoenix's laptop)
-const IndexName = import.meta.env.VITE_SEARCH_INDEX_NAME
-// from .env, a list of indexes the search engine currently reads
-export const availableIndexes: string[] = import.meta.env.VITE_SEARCH_INDEXES.split(',')
+const IndexName = SEARCH_INDEX_NAME
+// from the SEARCH_INDEXES setting, a list of indexes the search engine currently reads
+export const availableIndexes: string[] = SEARCH_INDEXES.split(',')
 // an object of index names to url's where that index is published
 export const indexURLs = Object.fromEntries(availableIndexes.map(name => {
-  return [name, import.meta.env.VITE_SEARCH_DATA + fn`${IndexName}/${name}`]
+  return [name, SEARCH_DATA + fn`${IndexName}/${name}`]
 }))
 // an object of index names, keyed by the url to that index, for reverse lookup
 export const indexByURL: { [url: string]: string } = Object.fromEntries(Object.entries(indexURLs).map(([name, url]) => [url, name]))
@@ -57,7 +58,7 @@ export async function search (query: string, start: number, length: number, forc
   let globalVectors: { [word: string]: WordVector } | undefined
   if (/*!globalVectors &&*/ checkQueryContainsWords(query)) {
     // !!! should this have a cache expiry mechanism?
-    globalVectors = await openGlobalVectors(import.meta.env.VITE_SEARCH_DATA + fn`${IndexName}/global-vectors.lps`)
+    globalVectors = await openGlobalVectors(SEARCH_DATA + fn`${IndexName}/global-vectors.lps`)
   }
 
   // word lookup function which checks the local vectors cache before bothering to load rare words

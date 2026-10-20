@@ -14,8 +14,9 @@ Test names use two labels:
 
 ## How they run
 
-- `@find-sign/test-helpers/test-env.ts` must be the **first import**. Several modules read `import.meta.env` at load
-  time; in vitest that is backed by `process.env`, which this file fills with fixed test values
+- `@find-sign/test-helpers/test-env.ts` must be the **first import**. Several modules read settings at load
+  time; in tests `$app/env/public` and `$app/env/private` read `process.env` (`vitest-aliases.js`), which this
+  file fills with fixed test values
   (indexes `alpha,beta`, a deterministic write identity and passkey secret, fake hostnames).
 - `fake-data-server.ts` replaces `fetch` with an in-memory server. It implements the
   find-sign-data protocol (GET/HEAD/PUT/DELETE, bulk and math POSTs, directory listings), records

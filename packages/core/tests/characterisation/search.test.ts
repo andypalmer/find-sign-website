@@ -20,7 +20,7 @@ beforeEach(() => server.resetRequests())
 const ids = (response: { results: SearchResult[] }) => response.results.map(r => `${r.index}:${r.id}`)
 
 describe('index configuration', () => {
-  it('derives index urls from VITE_SEARCH_DATA, VITE_SEARCH_INDEX_NAME and VITE_SEARCH_INDEXES', () => {
+  it('derives index urls from SEARCH_DATA, SEARCH_INDEX_NAME and SEARCH_INDEXES', () => {
     expect(availableIndexes).toEqual(['alpha', 'beta'])
     expect(indexURLs).toEqual({ alpha: `${IndexBase}/alpha`, beta: `${IndexBase}/beta` })
     expect(indexByURL[`${IndexBase}/beta`]).toBe('beta')

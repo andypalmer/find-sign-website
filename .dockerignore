@@ -1,0 +1,9 @@
+**/node_modules
+**/.svelte-kit
+**/build
+coverage
+.git
+.gitignore
+# settings and secrets belong to the running container, never the image
+**/.env
+**/.env.*

@@ -3,6 +3,7 @@ import { loginRedirect } from '#lib/passkey/site-auth.ts'
 import type { RequestHandler } from './$types'
 import { readEncodedSearchData } from '@find-sign/indexer/orthagonal/write.ts'
 import { validateEncodedSearchDataEntry } from '@find-sign/core/orthagonal/types.ts'
+import { ENCODED_SEARCH_DATAS } from '$app/env/private'
 
 /** long polling endpoint for progress and log streaming from the post endpoints long running output */
 export const GET: RequestHandler = async (event) => {
@@ -15,7 +16,7 @@ export const POST: RequestHandler = async ({ locals, params }) => {
   const index = params.provider
 
   const progress = createProgressLog(async ({ log, progress }) => {
-    const searchData = await readEncodedSearchData(`${import.meta.env.VITE_ENCODED_SEARCH_DATAS}/${index}.json`)
+    const searchData = await readEncodedSearchData(`${ENCODED_SEARCH_DATAS}/${index}.json`)
     for (const key in searchData) {
       const entry = searchData[key]
       try {

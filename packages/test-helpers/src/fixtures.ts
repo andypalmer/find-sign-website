@@ -98,7 +98,10 @@ export function publishSearchData (server: FakeDataServer, data: { [provider: st
 export async function publishBuiltIndexes (server: FakeDataServer) {
   await publishVectorLibrary(server)
   publishSearchData(server)
-  const { default: buildSearchIndex } = await import('@find-sign/indexer/orthagonal/build.ts')
+  // the specifier is a variable so TypeScript doesn't type-check the indexer as part of every app that uses
+  // these fixtures: the indexer reads settings ($app/env/private) only the admin app declares
+  const indexerBuild = '@find-sign/indexer/orthagonal/build.ts'
+  const { default: buildSearchIndex }: { default: (provider: string, options: { log: () => void, progress: () => void }) => Promise<void> } = await import(/* @vite-ignore */ indexerBuild)
   const quiet = { log: () => {}, progress: () => {} }
   await buildSearchIndex('alpha', quiet)
   await buildSearchIndex('beta', quiet)

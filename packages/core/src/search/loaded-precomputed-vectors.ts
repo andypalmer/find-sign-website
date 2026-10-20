@@ -1,11 +1,12 @@
 import type { VectorLibrary, WordVector } from '#lib/search/precomputed-vectors.ts'
 import { open as pvOpen, lookup as pvLookup } from '#lib/search/precomputed-vectors.ts'
 import lru from '#lib/functions/lru.ts'
+import { VECTOR_INDEX } from '$app/env/public'
 
 let vectorLibrary: VectorLibrary | undefined = undefined
 export async function preload (): Promise<VectorLibrary> {
   if (!vectorLibrary) {
-    vectorLibrary = await pvOpen(import.meta.env.VITE_VECTOR_INDEX)
+    vectorLibrary = await pvOpen(VECTOR_INDEX)
   }
 
   return vectorLibrary

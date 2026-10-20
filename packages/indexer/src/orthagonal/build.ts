@@ -7,8 +7,10 @@ import { build, parse, type WordVector } from '@find-sign/core/search/precompute
 import { fn } from '@find-sign/core/models/filename-codec.ts'
 import { getOverrideFor, listOverrides } from '#lib/models/index-override.ts'
 import relativeURL from '#lib/functions/relative-url.ts'
+import { SEARCH_DATA, SEARCH_INDEX_NAME, SEARCH_INDEXES } from '$app/env/public'
+import { ENCODED_SEARCH_DATAS, VECTOR_FIDELITY } from '$app/env/private'
 
-const IndexName = import.meta.env.VITE_SEARCH_INDEX_NAME
+const IndexName = SEARCH_INDEX_NAME
 
 /**
  * provider name is required, log and progress options are functions called with updates
@@ -23,7 +25,7 @@ export default async function buildSearchIndex (provider: string, opts: { log?: 
   const progress = opts.progress || (() => {})
 
   log(`Reading search data ${provider}...`)
-  const searchData = await readEncodedSearchData(`${import.meta.env.VITE_ENCODED_SEARCH_DATAS}/${provider}.json`)
+  const searchData = await readEncodedSearchData(`${ENCODED_SEARCH_DATAS}/${provider}.json`)
   progress(0.01)
 
   // remove unpublished entries
@@ -49,7 +51,7 @@ export default async function buildSearchIndex (provider: string, opts: { log?: 
 
   // store media urls relative to the index folder, so the index works from whatever host serves it
   // read.ts loadEntry() resolves them back to absolute urls
-  const indexFolderURL = `${import.meta.env.VITE_SEARCH_DATA}${fn`${IndexName}/${provider}`}/`
+  const indexFolderURL = `${SEARCH_DATA}${fn`${IndexName}/${provider}`}/`
   for (const id in searchData) {
     for (const mediaItem of searchData[id].media) {
       mediaItem.thumbnail = relativeURL(indexFolderURL, mediaItem.thumbnail)
@@ -85,7 +87,7 @@ export default async function buildSearchIndex (provider: string, opts: { log?: 
   await bulkWrite(fn`${IndexName}/${provider}`, files)
   progress(0.97)
   log(`Rebuilding global word vector cache: Loading vector files...`)
-  const vectorFiles = await Promise.all(import.meta.env.VITE_SEARCH_INDEXES.split(',').map(async (provider: string) => {
+  const vectorFiles = await Promise.all(SEARCH_INDEXES.split(',').map(async (provider: string) => {
     const file = await readFile(fn`${IndexName}/${provider}/vectors.lps`)
     if (file) {
       return parse(file)
@@ -105,7 +107,7 @@ export default async function buildSearchIndex (provider: string, opts: { log?: 
   }
   progress(0.99)
   log(`Writing global word vector cache...`)
-  await writeFile(fn`${IndexName}/global-vectors.lps`, build(globalVectors, parseFloat(import.meta.env.VITE_VECTOR_FIDELITY || '1.0')))
+  await writeFile(fn`${IndexName}/global-vectors.lps`, build(globalVectors, parseFloat(VECTOR_FIDELITY || '1.0')))
   progress(1.00)
   log('Build complete')
 }

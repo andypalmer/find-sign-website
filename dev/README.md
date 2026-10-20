@@ -23,16 +23,16 @@ browser ──https──▶ <host>:8443 (caddy, terminates TLS)
    - **iOS**: AirDrop the file to the device, install the profile (Settings → Profile Downloaded),
      then enable it under Settings → General → About → Certificate Trust Settings.
    - **Android**: Settings → Security → Encryption & credentials → Install a certificate → CA certificate.
-4. Point `apps/site/.env` and `apps/admin/.env` at the proxy (start from each app's `example.env`). These
-   urls are built into the client, so every device must be able to reach the same address. Chrome on Android doesn't resolve `.local` (mDNS) names, so use this
+4. Point `apps/search/.env` and `apps/admin/.env` at the proxy (start from each app's `example.env`). These
+   urls are sent to the browser, so every device must be able to reach the same address. Chrome on Android doesn't resolve `.local` (mDNS) names, so use this
    machine's LAN IP (`ipconfig getifaddr en0`), and give it a DHCP reservation on your router so it
    doesn't change:
    ```
-   VITE_VECTOR_INDEX="https://192.168.1.10:8443/collections/wordvec/raw/commoncrawl-english-300"
-   VITE_SEARCH_DATA="https://192.168.1.10:8443/collections/find-sign/raw/"
-   VITE_ENCODED_SEARCH_DATAS="https://192.168.1.10:8443/collections/encoded-search-data/raw"
+   VECTOR_INDEX="https://192.168.1.10:8443/collections/wordvec/raw/commoncrawl-english-300"
+   SEARCH_DATA="https://192.168.1.10:8443/collections/find-sign/raw/"
+   ENCODED_SEARCH_DATAS="https://192.168.1.10:8443/collections/encoded-search-data/raw"
    ```
-   In `apps/site/.env`, `VITE_ADMIN_URL="https://192.168.1.10:8444/"` makes searching for "admin" link to
+   In `apps/search/.env`, `ADMIN_URL="https://192.168.1.10:8444/"` makes searching for "admin" link to
    the admin app. If your devices only run iOS/macOS, the Bonjour name (`scutil --get LocalHostName`,
    lowercased, plus `.local`) works too and survives IP changes.
 
@@ -58,9 +58,10 @@ way it runs behind Traefik, taking the public origin from the proxy's forwarded 
 
 ```sh
 npm run build                                    # builds both apps
-cd apps/site && PORT=4173 HOST=127.0.0.1 PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host node build
-cd apps/admin && PORT=4174 HOST=127.0.0.1 PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host node build
+cd apps/search && PORT=4173 HOST=127.0.0.1 PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host node --env-file=.env build
+cd apps/admin && PORT=4174 HOST=127.0.0.1 PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host node --env-file=.env build
 ```
 
-The same `PROTOCOL_HEADER` / `HOST_HEADER` settings (or a fixed `paths.origin` in `vite.config.js`) apply in production
+A build reads its settings when it starts, not when it's built, hence `--env-file` (in production the container's
+environment provides them). The same `PROTOCOL_HEADER` / `HOST_HEADER` settings (or a fixed `paths.origin` in `vite.config.js`) apply in production
 behind Traefik.

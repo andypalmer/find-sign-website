@@ -4,14 +4,16 @@ import { bytesToString } from "@find-sign/core/functions/string-encode.ts"
 import createAuthEndpoint from "#lib/passkey/endpoint.ts"
 import { validateUsername } from "#lib/models/user.ts"
 import { redirect } from "@sveltejs/kit"
+import { VERSION_LABEL } from "$app/env/public"
+import { PASSKEY_CHALLENGE_SECRET, PASSKEY_RP_ID } from "$app/env/private"
 
 const RelyingPartyName = 'Find Sign'
 
 const authEndpoint = createAuthEndpoint({
-  rpName: import.meta.env.VITE_VERSION_LABEL ? `${RelyingPartyName} (${import.meta.env.VITE_VERSION_LABEL})` : RelyingPartyName,
-  secretKey: import.meta.env.VITE_PASSKEY_CHALLENGE_SECRET,
+  rpName: VERSION_LABEL ? `${RelyingPartyName} (${VERSION_LABEL})` : RelyingPartyName,
+  secretKey: PASSKEY_CHALLENGE_SECRET,
   // passkeys made when admin was at find.auslan.fyi/admin belong to that hostname
-  rpID: import.meta.env.VITE_PASSKEY_RP_ID || undefined,
+  rpID: PASSKEY_RP_ID,
 
   // usernames become data server paths, and can come from the client or a passkey's user handle
   async getUser(username) {

@@ -1,0 +1,41 @@
+# Runs the find sign images that CI publishes, behind an existing Traefik. See deploy/README.md.
+# Placeholders to match your Traefik setup: the hostnames, the `websecure` entrypoint, the `letsencrypt`
+# certificate resolver, and the external `traefik` network.
+
+services:
+  search:
+    image: ghcr.io/andypalmer/find-sign-search:${FIND_SIGN_TAG:-production}
+    restart: unless-stopped
+    # settings and secrets: start from apps/search/example.env
+    env_file: search.env
+    environment:
+      # the public origin comes from Traefik's forwarded headers
+      PROTOCOL_HEADER: x-forwarded-proto
+      HOST_HEADER: x-forwarded-host
+    networks: [traefik]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.find-sign-search.rule: Host(`find.auslan.fyi`)
+      traefik.http.routers.find-sign-search.entrypoints: websecure
+      traefik.http.routers.find-sign-search.tls.certresolver: letsencrypt
+      traefik.http.services.find-sign-search.loadbalancer.server.port: "3000"
+
+  admin:
+    image: ghcr.io/andypalmer/find-sign-admin:${FIND_SIGN_TAG:-production}
+    restart: unless-stopped
+    # settings and secrets, including the data server write identity: start from apps/admin/example.env
+    env_file: admin.env
+    environment:
+      PROTOCOL_HEADER: x-forwarded-proto
+      HOST_HEADER: x-forwarded-host
+    networks: [traefik]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.find-sign-admin.rule: Host(`admin.find.auslan.fyi`)
+      traefik.http.routers.find-sign-admin.entrypoints: websecure
+      traefik.http.routers.find-sign-admin.tls.certresolver: letsencrypt
+      traefik.http.services.find-sign-admin.loadbalancer.server.port: "3000"
+
+networks:
+  traefik:
+    external: true

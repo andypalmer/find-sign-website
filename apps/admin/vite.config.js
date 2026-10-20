@@ -1,12 +1,11 @@
 import adapter from '@sveltejs/adapter-node';
 import { sveltePreprocess } from 'svelte-preprocess';
 import { sveltekit } from '@sveltejs/kit/vite';
-import secretGuard from '@find-sign/core/vite/secret-guard.js';
+import appEnvAliases from '@find-sign/test-helpers/vitest-aliases.js';
 
 /** @type {import('vitest/config').ViteUserConfig} */
 const config = {
 	plugins: [
-		secretGuard({ secret: ['VITE_SEARCH_WRITE_IDENTITY', 'VITE_PASSKEY_CHALLENGE_SECRET', 'VITE_AUTOMATION_KEY'] }),
 		sveltekit({
 			// Consult https://github.com/sveltejs/svelte-preprocess
 			// for more information about preprocessors
@@ -26,7 +25,8 @@ const config = {
 	preview: { port: 4174, allowedHosts: ['.local'] },
 	test: {
 		name: 'admin',
-		include: ['tests/**/*.test.ts']
+		include: ['tests/**/*.test.ts'],
+		alias: appEnvAliases
 	}
 };
 

@@ -21,7 +21,7 @@ describe('createLicense()', () => {
   it('signs "validFrom-validTo" (30s ago to 2 minutes ahead) with the identity secret key', () => {
     vi.useFakeTimers()
     vi.setSystemTime(1_000_000)
-    const identity = process.env.VITE_SEARCH_WRITE_IDENTITY as string
+    const identity = process.env.SEARCH_WRITE_IDENTITY as string
     const [scheme, publicKey, signature] = createLicense(identity).split('-')
     expect(scheme).toBe('ed25519')
     expect(decodeHex(publicKey)).toEqual(writeKeyPair.publicKey)
@@ -35,7 +35,7 @@ describe('createLicense()', () => {
 })
 
 describe('data-io requests', () => {
-  it('prefixes paths with VITE_SEARCH_DATA, adds a license and a User-Agent', async () => {
+  it('prefixes paths with SEARCH_DATA, adds a license and a User-Agent', async () => {
     await readFile('some/file.json')
     const [request] = server.requests
     expect(request.path).toBe(`${DataBase}some/file.json`)

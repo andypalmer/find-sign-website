@@ -4,6 +4,7 @@ import normalizeWord from '@find-sign/core/orthagonal/normalize-word.ts'
 import { chunk, times } from '@find-sign/core/functions/iters.ts'
 import { nanoid } from 'nanoid'
 import type { Vector } from '@find-sign/core/functions/vector-utilities.ts'
+import { LOCALE } from '$app/env/private'
 
 /** read an encoded-search-data from a url, transforming all URLs to be absolute */
 export async function readEncodedSearchData (url: string): Promise<EncodedSearchData> {
@@ -24,7 +25,7 @@ export async function readEncodedSearchData (url: string): Promise<EncodedSearch
     }
     if (!entry.words) {
       /** @ts-ignore */
-      const seg = new Intl.Segmenter(import.meta.env.VITE_LOCALE, { granularity: 'word' }) // node 16.x
+      const seg = new Intl.Segmenter(LOCALE, { granularity: 'word' }) // node 16.x
       entry.words = [...seg.segment(entry.title)].filter(x => x.isWordLike).map(x => x.segment)
     }
     if (!entry.body) {

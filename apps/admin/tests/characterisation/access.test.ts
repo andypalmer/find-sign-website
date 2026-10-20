@@ -48,7 +48,7 @@ describe('session cookie (hooks.server.ts handle)', () => {
     return e.locals
   }
 
-  it('sets locals from a token signed with VITE_PASSKEY_CHALLENGE_SECRET', async () => {
+  it('sets locals from a token signed with PASSKEY_CHALLENGE_SECRET', async () => {
     const ts = Math.round(Date.now() / 1000)
     expect(await localsFor(`token=${token({ username: 'viewer', ts })}`)).toEqual({ username: 'viewer', ts })
   })
@@ -149,6 +149,12 @@ describe('automation/build-index', () => {
     const response = await automationBuild.GET(event({ url: 'http://site.test/automation/build-index/alpha?key=wrong', params: { provider: 'alpha' } }))
     expect(response.status).toBe(400)
     expect(await response.text()).toBe('needs automation key query string param')
+  })
+
+  it('404s for a provider that is not in SEARCH_INDEXES', async () => {
+    const response = await automationBuild.GET(event({ url: `http://site.test/automation/build-index/gamma?key=${AutomationKey}`, params: { provider: 'gamma' } }))
+    expect(response.status).toBe(404)
+    expect(server.requests.filter(r => r.method === 'POST')).toHaveLength(0)
   })
 
   it('streams the build log as plain text when the key matches', async () => {

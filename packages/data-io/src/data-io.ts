@@ -1,8 +1,9 @@
 import { createLicense } from '#lib/auth.ts'
 import { stringToBytes } from '@find-sign/core/functions/string-encode.ts'
 import { encodeBase64 } from 'tweetnacl-ts'
-const identity = import.meta.env.VITE_SEARCH_WRITE_IDENTITY
-const collectionPath = import.meta.env.VITE_SEARCH_DATA
+import { SEARCH_DATA } from '$app/env/public'
+import { SEARCH_WRITE_IDENTITY } from '$app/env/private'
+const collectionPath = SEARCH_DATA
 
 export type FileInfoJSON = {
   name: string, // filename
@@ -28,7 +29,8 @@ export type MathOperation = {
 }
 
 async function request (path: string, init: RequestInit, ignoreError = false): Promise<Response> {
-  const license = createLicense(identity)
+  if (!SEARCH_WRITE_IDENTITY) throw new Error('data server requests need the SEARCH_WRITE_IDENTITY setting')
+  const license = createLicense(SEARCH_WRITE_IDENTITY)
   const url = new URL(`${collectionPath}${path}`)
   url.searchParams.set('license', license)
   const response = await fetch(url.toString(), {
