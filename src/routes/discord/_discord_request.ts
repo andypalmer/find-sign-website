@@ -24,7 +24,7 @@ export async function discordRequest(endpoint, options) {
     },
   })
 
-  // Use node-fetch to make requests
+  // Use fetch to make requests
   const res = await fetch(request)
 
   // throw API errors

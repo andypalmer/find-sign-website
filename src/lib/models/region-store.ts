@@ -1,5 +1,5 @@
-import { localStorageAdapter, persistentWritable } from 'svelte-persistent-writable'
+import persistentWritable from '$lib/functions/persistent-store'
 
-const regionStore = persistentWritable(false, { storage: localStorageAdapter('region') })
+const regionStore = persistentWritable<string | false>('region', false)
 
 export default regionStore

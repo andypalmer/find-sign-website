@@ -1,7 +1,6 @@
 import { createLicense } from '$lib/data-io/auth'
 import { stringToBytes } from '$lib/functions/string-encode'
 import { encodeBase64 } from 'tweetnacl-ts'
-// import fetch, { FormData, type RequestInit, type Response } from 'node-fetch'
 const identity = import.meta.env.VITE_SEARCH_WRITE_IDENTITY
 const collectionPath = import.meta.env.VITE_SEARCH_DATA
 

@@ -4,7 +4,7 @@
 	import DiscoveryFeed from '$lib/DiscoveryFeed.svelte'
 	import { onMount } from 'svelte'
 	import { goto, prefetchRoutes } from '$app/navigation'
-	import watchMedia from 'svelte-media'
+	import watchMedia from '$lib/functions/media-store'
 	import openGraphImage from '$lib/assets/open-graph-image@3x.png'
 	import { page } from '$app/stores'
 	import clientRecordAnalytics from '$lib/models/client-record-analytics'

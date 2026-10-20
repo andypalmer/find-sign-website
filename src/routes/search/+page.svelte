@@ -6,7 +6,7 @@
   import MainBlock from '$lib/MainBlock.svelte'
   import Paginator from '$lib/Paginator.svelte'
   import Result from '$lib/result/Result.svelte'
-  import watchMedia from 'svelte-media'
+  import watchMedia from '$lib/functions/media-store'
   import { closest } from 'fastest-levenshtein'
   import { tokenize } from '$lib/search/text'
   import { browser } from '$app/env'

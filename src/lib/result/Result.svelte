@@ -1,6 +1,6 @@
 <script lang="ts">
   import { isEncodedSearchDataEntry, type EncodedSearchDataEntry } from '$lib/orthagonal/types'
-  import watchMedia from 'svelte-media'
+  import watchMedia from '$lib/functions/media-store'
   import Carousel from '$lib/result/Carousel.svelte'
   import RegionMap from '$lib/RegionMap.svelte'
   import Icon from '$lib/Icon.svelte'

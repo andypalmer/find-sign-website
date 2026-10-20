@@ -1,5 +1,5 @@
-import { localStorageAdapter, persistentWritable } from 'svelte-persistent-writable'
+import persistentWritable from '$lib/functions/persistent-store'
 
-const usernameStore = persistentWritable('', { storage: localStorageAdapter('username') })
+const usernameStore = persistentWritable('username', '')
 
 export default usernameStore

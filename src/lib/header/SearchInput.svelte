@@ -1,5 +1,5 @@
 <script lang="ts">
-  import watchMedia from 'svelte-media'
+  import watchMedia from '$lib/functions/media-store'
   import { createEventDispatcher, onMount } from 'svelte'
   import { browser } from '$app/env'
   import { goto } from '$app/navigation'

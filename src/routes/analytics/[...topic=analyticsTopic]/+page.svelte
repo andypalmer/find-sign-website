@@ -8,7 +8,7 @@
 	import Line from "$lib/charts/Line.svelte"
 	import Area from "$lib/charts/Area.svelte"
 	import Header from "$lib/header/Header.svelte"
-	import watchMedia from 'svelte-media'
+	import watchMedia from '$lib/functions/media-store'
 	import { invalidate } from "$app/navigation"
 	import { page } from "$app/stores"
 	import { browser } from "$app/env"
