@@ -3,6 +3,16 @@ import { isValidAnalyticsTopic, readAnalyticsYear, type Topic } from '$lib/model
 import { error } from '@sveltejs/kit'
 import type { PageServerLoad } from './$types'
 
+// average a list of equal length blocks of minute counts, minute by minute
+// returns size zeros when there are no blocks (no recorded hits)
+function averageBlocks (blocks: ArrayLike<number>[], size: number): number[] {
+  const totals = [...times(size, () => 0)]
+  for (const block of blocks) {
+    for (let index = 0; index < size; index++) totals[index] += block[index] || 0
+  }
+  return totals.map(total => total / Math.max(blocks.length, 1))
+}
+
 export const load: PageServerLoad<{ topic: Topic, year: number, minutes: number[] }> = async ({ params, url }) => {
   const year = parseInt(url.searchParams.get('year') || `${(new Date).getUTCFullYear()}`, 10)
   const topic = params.topic
@@ -16,11 +26,7 @@ export const load: PageServerLoad<{ topic: Topic, year: number, minutes: number[
       block.some(x => x !== 0)
     )
 
-    const avgDayMinutes = [...daysWithData.reduce((prev, curr) =>
-      prev.map((val, index) => val + curr[index])
-    )].map(value =>
-      value / daysWithData.length
-    )
+    const avgDayMinutes = averageBlocks(daysWithData, 60 * 24)
 
     // in 5 min blocks
     const avgDay = chunk(avgDayMinutes, 5).map(block =>
@@ -32,11 +38,7 @@ export const load: PageServerLoad<{ topic: Topic, year: number, minutes: number[
     const weeksWithData = chunk(data.slice(mondayOffset), 60 * 24 * 7).filter(block =>
       block.some(x => x !== 0)
     )
-    const avgWeekMinutes = [...weeksWithData.reduce((prev, curr) =>
-      prev.map((val, index) => val + curr[index])
-    )].map(value =>
-      value / weeksWithData.length
-    )
+    const avgWeekMinutes = averageBlocks(weeksWithData, 60 * 24 * 7)
 
     const avgWeek = chunk(avgWeekMinutes, 60).map(hourMins =>
       hourMins.reduce((prev, curr) => prev + curr)
