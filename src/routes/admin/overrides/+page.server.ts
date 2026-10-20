@@ -1,8 +1,8 @@
 import { listOverrides } from "$lib/models/index-override"
-import { LoginRedirect } from '../login/passkey/+server'
+import { loginRedirect } from '$lib/passkey/site-auth'
 
 export async function load ({ locals }) {
-  if (!locals.username) return LoginRedirect
+  if (!locals.username) loginRedirect()
 
   const overrides = await listOverrides()
   return { overrides }

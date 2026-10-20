@@ -98,7 +98,7 @@ export class FakeDataServer {
 
     if (method === 'GET' || method === 'HEAD') {
       const file = this.files.get(path)
-      if (file) return new Response(method === 'HEAD' ? null : file, { status: 200 })
+      if (file) return new Response(method === 'HEAD' ? null : file as BodyInit, { status: 200 })
       const names = this.listing(path)
       if (names.length > 0) {
         if (headers['accept'] === 'text/plain') return new Response(names.join('\n'), { status: 200 })

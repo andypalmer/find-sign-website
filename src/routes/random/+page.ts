@@ -4,7 +4,7 @@ import { getSearchLibrary } from '$lib/search/search'
 import { getRandomSigns } from '$lib/search/random'
 import { fn } from '$lib/models/filename-codec'
 import clientRecordAnalytics from '$lib/models/client-record-analytics'
-import { browser } from '$app/env'
+import { browser } from '$app/environment'
 
 export const load: PageLoad = async function load ({ url, fetch }) {
   const index = url.searchParams.get('index')

@@ -1,7 +1,7 @@
 <script lang="ts">
   import watchMedia from '$lib/functions/media-store'
   import { createEventDispatcher, onMount } from 'svelte'
-  import { browser } from '$app/env'
+  import { browser } from '$app/environment'
   import { goto } from '$app/navigation'
   import { slide } from 'svelte/transition'
   import { quintOut } from 'svelte/easing'
@@ -14,7 +14,7 @@
   import MiniBlock from '$lib/MiniBlock.svelte'
 
   export let formAction = '/search'
-  export let method = 'GET'
+  export let method: 'GET' | 'POST' = 'GET'
   export let queryHandler = undefined
   export let query = ''
   export let input = undefined
@@ -26,7 +26,7 @@
   const media = watchMedia({ phone: '(max-width: 600px)' })
 
   // is the page load towards a search results page?
-	$: isSearchLoad = $navigating && $navigating.to && $navigating.to.pathname === '/search'
+	$: isSearchLoad = $navigating && $navigating.to && $navigating.to.url.pathname === '/search'
 
   onMount(() => {
     if (queryHandler === undefined) {
@@ -71,7 +71,7 @@
 </form>
 
 {#if showAdvanced}
-  <div class="advanced" transition:slide={{ duration: 300 }}>
+  <div class="advanced" transition:slide|global={{ duration: 300 }}>
     <MiniBlock>
       <h1>Advanced Settings</h1>
       {#if $regionStore}

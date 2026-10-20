@@ -13,7 +13,7 @@
 
 <header class={$$props.class} style={$$props.style}>
 	<!-- header logo -->
-  <a href="/" sveltekit:prefetch>
+  <a href="/" data-sveltekit-preload-data>
     <img class=header alt="Home Button" src={logo} width=411 height=90>
     {#if typeof versionLabel === 'string' && versionLabel.length > 0}
       <span class=version-label>{versionLabel}</span>
@@ -26,9 +26,9 @@
   <!-- nav links to static pages on the site -->
   {#if showNavigation}
     <nav transition:slide|local>
-      <a href=/random sveltekit:prefetch>Random</a>
-      <a href=/about sveltekit:prefetch>About</a>
-      <a href=/technology sveltekit:prefetch>Technology</a>
+      <a href=/random data-sveltekit-preload-data>Random</a>
+      <a href=/about data-sveltekit-preload-data>About</a>
+      <a href=/technology data-sveltekit-preload-data>Technology</a>
       <a href="https://blog.auslan.fyi/" rel="external">News</a>
     </nav>
   {/if}

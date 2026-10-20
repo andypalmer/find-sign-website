@@ -19,7 +19,7 @@
 <main>
   <h1>Random Sign Generator</h1>
 
-  <h2><a href={next} role="button" class="button" sveltekit:noscroll sveltekit:prefetch>🎲 Reroll</a></h2>
+  <h2><a href={next} role="button" class="button" data-sveltekit-noscroll data-sveltekit-preload-data>🎲 Reroll</a></h2>
   <div class="result-box">
     {#key permalink}
       <Result data={result} {permalink} expand prefer="quality" />

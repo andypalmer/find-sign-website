@@ -9,7 +9,7 @@
   import watchMedia from '$lib/functions/media-store'
   import { closest } from 'fastest-levenshtein'
   import { tokenize } from '$lib/search/text'
-  import { browser } from '$app/env'
+  import { browser } from '$app/environment'
   import { fn } from '$lib/models/filename-codec'
   import { goto } from '$app/navigation'
   import { getSearchLibrary } from '$lib/search/search'
@@ -62,7 +62,7 @@
       } else {
         searchParams.delete('r')
       }
-      goto(`?${searchParams}`, { noscroll: true, replaceState: true })
+      goto(`?${searchParams}`, { noScroll: true, replaceState: true })
     }
   }
 </script>

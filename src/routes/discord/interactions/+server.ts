@@ -85,7 +85,7 @@ async function runSearch (query: string, request, page = 0, bodyOverride?: any) 
 
 export async function POST ({ request }: { request: Request}) {
   const bodyText = await request.text()
-  if (!isValidReq(request, bodyText)) return error(401, 'Bad request signature')
+  if (!isValidReq(request, bodyText)) error(401, 'Bad request signature')
 
   const { type, id, data, token, member, message } = JSON.parse(bodyText)
 
@@ -159,5 +159,5 @@ export async function POST ({ request }: { request: Request}) {
     }
   }
 
-  return error(500, 'why u do??')
+  error(500, 'why u do??')
 }

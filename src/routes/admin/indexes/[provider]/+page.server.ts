@@ -1,9 +1,9 @@
 import { userHasPower } from '$lib/models/user'
 import { getSearchLibrary } from '$lib/search/search'
-import { LoginRedirect } from '../../login/passkey/+server'
+import { loginRedirect } from '$lib/passkey/site-auth'
 
 export async function load ({ locals, params }) {
-  if (!locals.username) return LoginRedirect
+  if (!locals.username) loginRedirect()
   if (!await userHasPower(locals.username, 'edit-index')) throw new Error('You don’t have the right to edit search index')
 
   const indexes = await getSearchLibrary([params.provider], ['id', 'title'])

@@ -1,5 +1,5 @@
 import { chunk, times } from '$lib/functions/iters'
-import { isValidAnalyticsTopic, readAnalyticsYear, type Topic } from '$lib/models/analytics'
+import { isValidAnalyticsTopic, readAnalyticsYear } from '$lib/models/analytics'
 import { error } from '@sveltejs/kit'
 import type { PageServerLoad } from './$types'
 
@@ -13,7 +13,7 @@ function averageBlocks (blocks: ArrayLike<number>[], size: number): number[] {
   return totals.map(total => total / Math.max(blocks.length, 1))
 }
 
-export const load: PageServerLoad<{ topic: Topic, year: number, minutes: number[] }> = async ({ params, url }) => {
+export const load: PageServerLoad = async ({ params, url }) => {
   const year = parseInt(url.searchParams.get('year') || `${(new Date).getUTCFullYear()}`, 10)
   const topic = params.topic
   if (isValidAnalyticsTopic(topic)) {
@@ -55,6 +55,6 @@ export const load: PageServerLoad<{ topic: Topic, year: number, minutes: number[
 
     return { topic, year, days, avgDay, avgWeek, maxAge: 60000 }
   } else {
-    return error(500, 'invalid topic')
+    error(500, 'invalid topic')
   }
 }

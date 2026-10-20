@@ -6,15 +6,17 @@ import { expect, describe, it, beforeEach, vi } from 'vitest'
 import { FakeDataServer } from '../helpers/fake-data-server'
 import { publishSearchData, publishVectorLibrary } from '../helpers/fixtures'
 import { encodeHex, decodeUTF8, sign } from 'tweetnacl-ts'
-import { handle } from '../../src/hooks'
+import { isRedirect } from '@sveltejs/kit'
+import { handle } from '../../src/hooks.server'
 import { createUser, getUser } from '../../src/lib/models/user'
 import { writeAuditLog } from '../../src/lib/models/audit-log'
 import * as adminHome from '../../src/routes/admin/+page.server'
 import * as adminIndexes from '../../src/routes/admin/indexes/+page.server'
 import * as adminOverrides from '../../src/routes/admin/overrides/+page.server'
-import * as adminOverride from '../../src/routes/admin/overrides/[provider=provider]:[id=filename]/+page.server'
+import * as adminOverrideEndpoint from '../../src/routes/admin/overrides/[provider=provider]:[id=filename]/+server'
 import * as adminUsers from '../../src/routes/admin/users/+page.server'
 import * as adminUser from '../../src/routes/admin/users/[user]/+page.server'
+import * as adminUserEndpoint from '../../src/routes/admin/users/[user]/+server'
 import * as auditLog from '../../src/routes/admin/audit-log/+page.server'
 import * as auditFeed from '../../src/routes/admin/audit-log/feed.json/+server'
 import * as validate from '../../src/routes/admin/indexes/[provider]/validate/+server'
@@ -39,7 +41,7 @@ function event ({ cookie = '', url = 'http://site.test/admin', username = undefi
     url: new URL(url),
     params,
     locals: username ? { username } : {},
-    clientAddress: '127.0.0.1',
+    getClientAddress: () => '127.0.0.1',
     setHeaders: () => {},
     request: new Request(url, { method, headers: { cookie }, body: body && JSON.stringify(body) }),
   } as any
@@ -47,7 +49,7 @@ function event ({ cookie = '', url = 'http://site.test/admin', username = undefi
 
 const asUser = (username: string, extra = {}) => event({ username, ...extra })
 
-describe('session cookie (hooks.ts handle)', () => {
+describe('session cookie (hooks.server.ts handle)', () => {
   async function localsFor (cookie: string) {
     const e = event({ cookie })
     vi.spyOn(console, 'info').mockImplementation(() => {})
@@ -70,11 +72,12 @@ describe('session cookie (hooks.ts handle)', () => {
 })
 
 describe('login required pages', () => {
-  it('QUIRK: LoginRedirect is returned as page data instead of thrown, so SvelteKit does not redirect', async () => {
-    const result: any = await adminHome.load(event())
-    expect(result.constructor.name).toBe('Redirect')
-    expect(result).toMatchObject({ status: 307, location: '/admin/login' })
-    expect(await adminIndexes.load(event())).toBe(result)
+  it('redirects logged out visitors to the login page', async () => {
+    for (const load of [adminHome.load, adminIndexes.load, adminUsers.load] as any[]) {
+      const thrown = await load(event()).catch(err => err)
+      expect(isRedirect(thrown)).toBe(true)
+      expect(thrown).toMatchObject({ status: 307, location: '/admin/login' })
+    }
   })
 
   it('admin/indexes requires the edit-index power', async () => {
@@ -90,18 +93,19 @@ describe('login required pages', () => {
   })
 
   it('GAP: an edit-users holder can grant themselves any power, including "everything"', async () => {
-    await adminUser.PUT(asUser('admin', { params: { user: 'admin' }, method: 'PUT', body: { powers: ['everything'] } }))
+    const response = await adminUserEndpoint.PUT(asUser('admin', { params: { user: 'admin' }, method: 'PUT', body: { powers: ['everything'] } }))
     expect((await getUser('admin')).powers).toEqual(['everything'])
+    // responds with the updated user, which the edit page reads back
+    expect(await response.json()).toMatchObject({ powers: ['everything'] })
   })
 
-  it('QUIRK: saving an override does not wait for the write, and returns no Response', async () => {
+  it('saving an override waits for the write, then responds 204', async () => {
     await publishVectorLibrary(server)
     publishSearchData(server)
-    const result = await adminOverride.POST(asUser('indexer', {
+    const response = await adminOverrideEndpoint.POST(asUser('indexer', {
       params: { provider: 'alpha', id: 'cat' }, url: 'http://site.test/admin/overrides/alpha:cat', method: 'POST', body: { title: 'New' },
     }))
-    expect(result).toBeUndefined()
-    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(response.status).toBe(204)
     expect(server.getJSON(`${DataBase}overrides/alpha:cat.json`)).toEqual({ title: 'New' })
   })
 

@@ -4,7 +4,7 @@ import { fn } from '$lib/models/filename-codec'
 import { userHasPower } from '$lib/models/user'
 import buildSearchIndex from '$lib/orthagonal/build'
 import { createProgressLog, nextUpdateResponse } from '$lib/progress/progress-log'
-import { LoginRedirect } from '../../../login/passkey/+server'
+import { loginRedirect } from '$lib/passkey/site-auth'
 import type { RequestHandler } from './$types'
 
 /** long polling endpoint for progress and log streaming from the post endpoints long running output */
@@ -14,7 +14,7 @@ export const GET: RequestHandler = async (event) => {
 
 /** endpoint for manually rebuilding search index, e.g. after authoring an index override */
 export const POST: RequestHandler = async ({ locals, params, url }) => {
-  if (!locals.username) return LoginRedirect
+  if (!locals.username) loginRedirect()
   if (!await userHasPower(locals.username, 'edit-index')) throw new Error('You don’t have the right to edit search index')
   const fast = !!url.searchParams.has('fast')
 

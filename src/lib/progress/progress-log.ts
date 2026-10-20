@@ -14,7 +14,7 @@ type ProgressReport = {
   index?: number, // incrementing index for report
 }
 
-type ProgressReporter = ({ progress: ProgressSet, log: ProgressLog }) => Promise<any>
+type ProgressReporter = (reporter: { progress: (value: number) => void, log: (...things: any[]) => void }) => Promise<any>
 type ProgressUpdate = {
   timestamp: number,
   log?: any[],

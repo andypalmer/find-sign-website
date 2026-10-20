@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit'
 import { createProgressLog, nextUpdateResponse } from '$lib/progress/progress-log'
-import { LoginRedirect } from '../../../login/passkey/+server'
+import { loginRedirect } from '$lib/passkey/site-auth'
 import type { RequestHandler } from './$types'
 import { readEncodedSearchData } from '$lib/orthagonal/write'
 import { validateEncodedSearchDataEntry } from '$lib/orthagonal/types'
@@ -12,7 +12,7 @@ export const GET: RequestHandler = async (event) => {
 
 /** endpoint for manually rebuilding search index, e.g. after authoring an index override */
 export const POST: RequestHandler = async ({ locals, params }) => {
-  if (!locals.username) return LoginRedirect
+  if (!locals.username) loginRedirect()
   const index = params.provider
 
   const progress = createProgressLog(async ({ log, progress }) => {

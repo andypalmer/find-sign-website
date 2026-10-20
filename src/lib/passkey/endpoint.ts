@@ -214,7 +214,7 @@ export default function createAuthEndpoint (endpointOptions: AuthEndpointOptions
         }
         return sessionData
       } else {
-        console.info('Invalid Token Cookie recieved from ' + event.clientAddress, event.request.headers.get('cookie'), 'accessing', event.url.toString())
+        console.info('Invalid Token Cookie recieved from ' + event.getClientAddress(), event.request.headers.get('cookie'), 'accessing', event.url.toString())
       }
     }
 

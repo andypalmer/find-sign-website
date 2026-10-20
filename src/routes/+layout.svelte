@@ -14,7 +14,7 @@
 	$: loading = $navigating !== null
 
 	// is the page load towards a search results page?
-	$: isSearchLoad = $navigating && $navigating.to && $navigating.to.pathname === '/search'
+	$: isSearchLoad = $navigating && $navigating.to && $navigating.to.url.pathname === '/search'
 
 	let showSpinner = false
 	let timer = undefined

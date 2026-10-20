@@ -14,6 +14,6 @@ export async function sha256 (message: string | Uint8Array): Promise<Uint8Array>
   const msgUint8 = typeof message === 'string' ? new TextEncoder().encode(message) : message
   /** @ts-ignore */
   const subtle = await getCrypto()
-  const hashBuffer = await subtle.digest('SHA-256', msgUint8)
+  const hashBuffer = await subtle.digest('SHA-256', msgUint8 as BufferSource)
   return new Uint8Array(hashBuffer)
 }

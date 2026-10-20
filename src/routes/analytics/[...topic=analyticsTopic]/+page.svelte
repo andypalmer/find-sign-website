@@ -11,7 +11,7 @@
 	import watchMedia from '$lib/functions/media-store'
 	import { invalidate } from "$app/navigation"
 	import { page } from "$app/stores"
-	import { browser } from "$app/env"
+	import { browser } from "$app/environment"
 
   export let data: PageData // server sent data is all in UTC zone
 
@@ -74,12 +74,12 @@
 <MainBlock wide>
   <h1>“{data.topic}” requests in {data.year}</h1>
 
-	<p><a href="/analytics" sveltekit:noscroll sveltekit:prefetch>Back to Analytics Topics List</a></p>
+	<p><a href="/analytics" data-sveltekit-noscroll data-sveltekit-preload-data>Back to Analytics Topics List</a></p>
 
 	<div class="year-links">
-		<a href="?year={data.year - 1}" sveltekit:noscroll sveltekit:prefetch>⋖ {data.year - 1}</a>
+		<a href="?year={data.year - 1}" data-sveltekit-noscroll data-sveltekit-preload-data>⋖ {data.year - 1}</a>
 		<span>{data.year}</span>
-		<a href="?year={data.year + 1}" sveltekit:noscroll sveltekit:prefetch>{data.year + 1} ⋗</a>
+		<a href="?year={data.year + 1}" data-sveltekit-noscroll data-sveltekit-preload-data>{data.year + 1} ⋗</a>
 	</div>
 
 	<p>Display Timezone: <input type="range" min="-12" max="12" step="0.5" bind:value={tzOffsetHrs}> UTC {tzOffsetHrs < 0 ? '-' : '+'} {Math.abs(tzOffsetHrs)} hours </p>
@@ -150,7 +150,7 @@
 	{#if data.topic === 'search' && data.year <= 2022}
 		<p>
 			Note: Due to a quirk in how Find Sign used to work, individual search hits were not able to be recorded before August 24th 2022. Usage before this point can be
-			somewhat inferred by hits in the <a href="/analytics/homepage" sveltekit:prefetch>homepage</a> dataset.
+			somewhat inferred by hits in the <a href="/analytics/homepage" data-sveltekit-preload-data>homepage</a> dataset.
 		</p>
 	{/if}
 </MainBlock>

@@ -1,6 +1,7 @@
 // Tests for the analytics page loader's aggregation of per-minute hit counters.
 import '../helpers/test-env'
 import { expect, describe, it, vi, beforeEach } from 'vitest'
+import { isHttpError } from '@sveltejs/kit'
 
 const readAnalyticsYear = vi.fn()
 vi.mock('../../src/lib/models/analytics', async () => {
@@ -59,9 +60,10 @@ describe('analytics page load', () => {
     expect(page).toMatchObject({ topic: 'search', year: 2026, maxAge: 60000 })
   })
 
-  it('QUIRK: returns (rather than throws) an error for an invalid topic', async () => {
-    const result: any = await load(event('nope'))
-    expect(result).toMatchObject({ name: 'HttpError', status: 500, message: 'invalid topic' })
+  it('throws a 500 for an invalid topic', async () => {
+    const thrown = await Promise.resolve().then(() => load(event('nope'))).catch(err => err)
+    expect(isHttpError(thrown, 500)).toBe(true)
+    expect(thrown.body).toEqual({ message: 'invalid topic' })
     expect(readAnalyticsYear).not.toHaveBeenCalled()
   })
 })

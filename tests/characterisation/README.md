@@ -26,4 +26,4 @@ Test names use two labels:
 Some modules keep process-wide state (vector library LRU, homepage response cache). Tests that need
 a cold start call `vi.resetModules()` and re-import.
 
-Run with `npx vitest --run tests/characterisation`.
+Run with `npx vitest run tests/characterisation`, or `npm run coverage` for a coverage report.

@@ -3,12 +3,12 @@
 	import Header from '$lib/header/Header.svelte'
 	import DiscoveryFeed from '$lib/DiscoveryFeed.svelte'
 	import { onMount } from 'svelte'
-	import { goto, prefetchRoutes } from '$app/navigation'
+	import { goto, preloadCode } from '$app/navigation'
 	import watchMedia from '$lib/functions/media-store'
 	import openGraphImage from '$lib/assets/open-graph-image@3x.png'
 	import { page } from '$app/stores'
 	import clientRecordAnalytics from '$lib/models/client-record-analytics'
-	import { browser } from '$app/env'
+	import { browser } from '$app/environment'
 
 	export let data: PageData
 
@@ -17,7 +17,7 @@
 
 	onMount(() => {
 		// preload the search results interface
-		prefetchRoutes(['/search'])
+		preloadCode('/search')
 
 		const hash = window.location.hash
 		if (typeof hash === 'string' && hash.startsWith('#') && hash.endsWith('/0')) {

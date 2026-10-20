@@ -44,7 +44,7 @@
       <div class=datas>
         <h2 class=words>
           {#if data.link}
-            <a href={data.link} referrerpolicy=origin rel=external sveltekit:reload>
+            <a href={data.link} referrerpolicy=origin rel=external data-sveltekit-reload>
               {data.title || data.words.join(', ')}
             </a>
           {:else if permalink}
@@ -57,10 +57,10 @@
         <cite class=link>
           {#if data.nav && data.nav.length > 0}
             {#each data.nav as [name, url]}
-              <a href={url} referrerpolicy=origin rel=external sveltekit:reload>{name}</a>
+              <a href={url} referrerpolicy=origin rel=external data-sveltekit-reload>{name}</a>
             {/each}
           {:else if data.link}
-            <a href={data.link} referrerpolicy=origin rel=external sveltekit:reload>{data.link}</a>
+            <a href={data.link} referrerpolicy=origin rel=external data-sveltekit-reload>{data.link}</a>
           {:else if permalink}
             <a href={permalink}>{permalink}</a>
           {/if}
@@ -76,7 +76,7 @@
 
       <div class=icons>
         {#if permalink}
-          <a class="permalink" href={permalink} sveltekit:prefetch><Icon name="link"/></a>
+          <a class="permalink" href={permalink} data-sveltekit-preload-data><Icon name="link"/></a>
         {/if}
 
         {#if ['wa','nt','sa','qld','nsw','act','vic','tas'].some(x => data.tags.includes(x))}
@@ -85,16 +85,8 @@
       </div>
     </div>
 
-    <div class=body>{
-      #if warnings.length > 0
-        }<div class=alerts>{
-          #each warnings as warning
-            }<div class="alert {warning.type}"><Icon name={warning.icon || 'alert'}/> {warning.text}</div>{
-          /each
-        }</div>{
-      /if
-      }{data.body || ''
-    }</div>
+    <!-- kept on one line: .body preserves whitespace, so none may appear between these tags -->
+    <div class=body>{#if warnings.length > 0}<div class=alerts>{#each warnings as warning}<div class="alert {warning.type}"><Icon name={warning.icon || 'alert'}/> {warning.text}</div>{/each}</div>{/if}{data.body || ''}</div>
   {/if}
 </div>
 

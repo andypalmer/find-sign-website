@@ -63,7 +63,7 @@
   <p>
     Find Sign indexes copyright data, so the dataset is not open source, but it is intended to be open access for
     non-commercial culturally appropriate use. You can explore the data Find Sign uses on our
-    <a href="https://data.auslan.fyi/collections/search-data" sveltekit:reload>dataset website</a>.
+    <a href="https://data.auslan.fyi/collections/search-data" data-sveltekit-reload>dataset website</a>.
   </p>
   <p>
     If you want to apply this searching technology to another sign language, you'll need to capture the data for your

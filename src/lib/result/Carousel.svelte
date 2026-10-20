@@ -4,7 +4,7 @@
   import { page } from '$app/stores'
   import { goto } from '$app/navigation'
   import { inview } from 'svelte-inview' // intersection observer
-  import { browser } from '$app/env'
+  import { browser } from '$app/environment'
 
   export let key: number|string = 0 // unique index of carousel, for search params state transmission
   export let medias: SearchDataEncodedMedia[] = []
@@ -45,7 +45,7 @@
     selected -= 1
     /* @ts-ignore */
     const link: HTMLAnchorElement = event.target
-    goto(link.href, { replaceState: true, noscroll: true })
+    goto(link.href, { replaceState: true, noScroll: true })
   }
 
   function nextClick (event: MouseEvent) {
@@ -53,13 +53,13 @@
     selected += 1
     /* @ts-ignore */
     const link: HTMLAnchorElement = event.target
-    goto(link.href, { replaceState: true, noscroll: true })
+    goto(link.href, { replaceState: true, noScroll: true })
   }
 </script>
 
 <!-- svelte-ignore a11y-media-has-caption -->
 <!-- these videos have no audio to caption -->
-<div class={$$props.class} use:inview={{}} on:change={intersectionChange} style={`--backdrop: url("${thumbnail}")`}>
+<div class={$$props.class} use:inview={{}} on:inview_change={intersectionChange} style={`--backdrop: url("${thumbnail}")`}>
   <a href={link} referrerpolicy="origin" rel="external" title="video {selected + 1}">
     {#key thumbnail || media}
       {#if type === 'video'}

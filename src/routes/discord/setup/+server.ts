@@ -5,7 +5,7 @@ import commands from '../_commands.js'
 import { json } from '@sveltejs/kit'
 
 // Checks for a command
-export async function hasCommand(command, isDev) {
+async function hasCommand(command, isDev) {
   // API endpoint to get and post guild commands
   const endpoint = isDev
     ? `applications/${DiscordAppID}/guilds/${TestGuildID}/commands`
@@ -31,7 +31,7 @@ export async function hasCommand(command, isDev) {
 }
 
 // Installs a command
-export async function installCommand(command, endpoint) {
+async function installCommand(command, endpoint) {
   // API endpoint to get and post guild commands
   // const endpoint = `applications/${DiscordAppID}/guilds/${TestGuildID}/commands`
   // const endpoint = `applications/${DiscordAppID}/commands`

@@ -82,7 +82,7 @@
 	}
 
 	.tick line {
-		stroke: currentColor;;
+		stroke: currentColor;
 	}
 	.tick .gridline {
 		stroke-dasharray: 2;

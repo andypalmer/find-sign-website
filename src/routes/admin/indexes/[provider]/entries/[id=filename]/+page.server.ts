@@ -1,12 +1,12 @@
 import type { PageServerLoad } from './$types'
 import { userHasPower } from '$lib/models/user'
-import { LoginRedirect } from '../../../../login/passkey/+server'
+import { loginRedirect } from '$lib/passkey/site-auth'
 import { getSearchLibrary } from '$lib/search/search'
 import { decodeFilename } from '$lib/models/filename-codec'
 import { error } from '@sveltejs/kit'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-  if (!locals.username) return LoginRedirect
+  if (!locals.username) loginRedirect()
   if (!await userHasPower(locals.username, 'edit-index')) throw new Error('You don’t have the right to edit search index')
 
   const provider = decodeFilename(params.provider)
@@ -18,6 +18,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   if (entry) {
     return { provider, id, entry: await entry.load() }
   } else {
-    return error(404)
+    error(404)
   }
 }

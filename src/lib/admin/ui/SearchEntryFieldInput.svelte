@@ -17,8 +17,7 @@
     return isoString.substring(0, (isoString.indexOf("T")|0) + 6|0)
   }
 
-  function fromDatetime (event: CustomEvent) {
-    /** @ts-ignore */
+  function fromDatetime (event: Event & { currentTarget: HTMLInputElement }) {
     const date = new Date(event.currentTarget.value)
     value = date.getTime()
   }
