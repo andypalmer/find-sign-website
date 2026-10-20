@@ -1,0 +1,63 @@
+# Builds and publishes a container image for each app to ghcr.io. Called by node.js.yml (branch and version tag
+# pushes) and release-please.yml (releases). Images carry no settings: containers get them from their
+# environment (see deploy/README.md). The caller grants `packages: write`.
+#
+# tags: branch builds get :main or :production (the latest build for each deploy path); releases get
+# :1.2.3, :1.2 and :1 (not :1.2 / :1 for prereleases, nor :0 for 0.x); every build gets :sha-<commit>
+
+name: Images
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: release version without the v (e.g. 1.2.3); defaults to the pushed version tag, if any
+        type: string
+        default: ''
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - app: search
+            image: find-sign-search
+          - app: admin
+            image: find-sign-admin
+
+    steps:
+    - uses: actions/checkout@v4
+    - id: version
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        version="$INPUT_VERSION"
+        if [ -z "$version" ] && [ "$GITHUB_REF_TYPE" = tag ]; then version="${GITHUB_REF_NAME#v}"; fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+    - uses: docker/setup-buildx-action@v3
+    - uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+        tags: |
+          type=ref,event=branch,enable=${{ steps.version.outputs.version == '' }}
+          type=semver,pattern={{version}},value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.version != '' }}
+          type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.version != '' }}
+          type=semver,pattern={{major}},value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.version != '' && !startsWith(steps.version.outputs.version, '0.') }}
+          type=sha
+    - uses: docker/build-push-action@v6
+      with:
+        context: .
+        build-args: APP=${{ matrix.app }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha,scope=${{ matrix.app }}
+        cache-to: type=gha,scope=${{ matrix.app }},mode=max

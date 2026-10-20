@@ -25,12 +25,17 @@ Both apps share one version: a tag releases the whole repo.
 
 ## Releasing a version
 
-Tag the commit (usually the head of `production`) and push the tag:
+Releases come from [release-please](https://github.com/googleapis/release-please)
+(`.github/workflows/release-please.yml`). On every push to `main` it keeps a release PR open, which bumps the
+version in `package.json` and adds the changes to `CHANGELOG.md`. The version follows the Conventional Commit
+messages since the last release: `fix:` bumps the patch, `feat:` the minor, and `!` or `BREAKING CHANGE:` the
+major. Merging the release PR tags the commit (`v1.4.2`), creates a GitHub release, then tests that commit and
+publishes the versioned images.
 
-```sh
-git tag v1.4.2
-git push origin v1.4.2
-```
+To force a version, add `Release-As: 2.0.0` to the body of a commit message.
+
+A version tag pushed by hand (`git tag v1.4.2 && git push origin v1.4.2`) also publishes versioned images, through
+`node.js.yml`.
 
 ## Setting up a server
 
@@ -60,5 +65,8 @@ it to follow `:production` again.
 
 ## One-off GitHub setup
 
-The first push creates both packages as private. Make each public once, under the package's settings on
-GitHub (Package settings → Change visibility), so servers can pull without logging in.
+- release-please opens its PR with the workflow's own token, which GitHub only allows once it's enabled: Settings
+  → Actions → General → Workflow permissions → "Allow GitHub Actions to create and approve pull requests". (PRs
+  opened with that token don't run CI themselves; their commits are tested when merged.)
+- The first image push creates both packages as private. Make each public once, under the package's settings on
+  GitHub (Package settings → Change visibility), so servers can pull without logging in.

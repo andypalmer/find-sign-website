@@ -1,6 +1,6 @@
-# Tests every workspace, then on pushes to main or production, or of a version tag (v1.2.3), publishes a
-# container image for each app to ghcr.io. Images carry no settings: containers get them from their
-# environment (see deploy/README.md).
+# Tests every workspace, then on pushes to main or production, or of a version tag pushed by hand (v1.2.3),
+# publishes the apps' container images. Releases made by release-please publish their own images
+# (release-please.yml), since tags it creates don't trigger workflows.
 
 name: Node.js CI
 
@@ -13,70 +13,12 @@ on:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [26.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - run: npm ci
-    - run: npm run build
-    - run: npm run check
-    - run: npm test
+    uses: ./.github/workflows/test.yml
 
   images:
     needs: build
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-
     permissions:
       contents: read
       packages: write
-
-    strategy:
-      matrix:
-        include:
-          - app: search
-            image: find-sign-search
-          - app: admin
-            image: find-sign-admin
-
-    steps:
-    - uses: actions/checkout@v4
-    - uses: docker/setup-buildx-action@v3
-    - uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
-        # branch pushes: :main or :production, the latest build for each deploy path
-        # version tags: v1.2.3 publishes :1.2.3, :1.2 and :1 (not :1.2 / :1 for prereleases, nor :0 for 0.x)
-        # every build: :sha-<commit>
-        tags: |
-          type=ref,event=branch
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
-          type=sha
-    - uses: docker/build-push-action@v6
-      with:
-        context: .
-        build-args: APP=${{ matrix.app }}
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha,scope=${{ matrix.app }}
-        cache-to: type=gha,scope=${{ matrix.app }},mode=max
+    uses: ./.github/workflows/images.yml

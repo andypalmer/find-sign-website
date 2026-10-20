@@ -19,7 +19,8 @@ folder; they cover every workspace. `npm run dev` starts the public site and `np
 
 Settings are read when each server starts, not built in: each app declares them in `src/env.ts`, and its
 `example.env` lists them. In dev they come from the app's `.env`; deployed, from the container's environment.
-CI publishes an image per app to ghcr.io; `deploy/README.md` covers running them.
+CI publishes an image per app to ghcr.io, and release-please cuts versioned releases from `main`;
+`deploy/README.md` covers both.
 
 ## Requirements
 
