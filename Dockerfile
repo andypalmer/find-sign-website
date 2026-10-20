@@ -16,6 +16,8 @@ COPY packages/core/package.json packages/core/
 COPY packages/data-io/package.json packages/data-io/
 COPY packages/indexer/package.json packages/indexer/
 COPY packages/test-helpers/package.json packages/test-helpers/
+# records builds itself to dist/ when installed (its prepare script), so it needs its source here
+COPY packages/records packages/records
 RUN npm ci
 COPY . .
 RUN npm run build -w apps/$APP

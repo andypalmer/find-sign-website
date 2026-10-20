@@ -5,58 +5,12 @@ import { chunk, times } from '@find-sign/core/functions/iters.ts'
 import { nanoid } from 'nanoid'
 import type { Vector } from '@find-sign/core/functions/vector-utilities.ts'
 import { LOCALE } from '$app/env/private'
+import { resolveSearchDataURLs, withSearchDataDefaults } from './search-data-defaults.ts'
 
 /** read an encoded-search-data from a url, transforming all URLs to be absolute */
 export async function readEncodedSearchData (url: string): Promise<EncodedSearchData> {
   const response = await fetch(url)
-  const json: EncodedSearchData = await response.json()
-  for (const id in json) {
-    const entry = json[id] = {
-      id: id,
-      published: true,
-      // search-data files don't usually include the id, it's the key
-      ...(json[id] as Partial<EncodedSearchDataEntry>)
-    } as EncodedSearchDataEntry
-    if (!entry.title && entry.words) {
-      entry.title = entry.words.join(', ')
-    }
-    if (!entry.title) {
-      entry.title = id
-    }
-    if (!entry.words) {
-      /** @ts-ignore */
-      const seg = new Intl.Segmenter(LOCALE, { granularity: 'word' }) // node 16.x
-      entry.words = [...seg.segment(entry.title)].filter(x => x.isWordLike).map(x => x.segment)
-    }
-    if (!entry.body) {
-      entry.body = ''
-    }
-    if (!entry.tags) {
-      entry.tags = []
-    }
-    if (!entry.media) {
-      entry.media = []
-    }
-    // make all the links absolute
-    if (entry.link) entry.link = (new URL(entry.link, url)).toString()
-    if (entry.nav) entry.nav = entry.nav.map(([label, link]) => [label, (new URL(link, url)).toString()])
-    if (entry.author && entry.author.link) {
-      entry.author.link = (new URL(entry.author.link, url)).toString()
-    }
-    if (entry.author && entry.author.avatar) {
-      entry.author.avatar = (new URL(entry.author.avatar, url)).toString()
-    }
-    if (entry.provider && entry.provider.link) {
-      entry.provider.link = (new URL(entry.provider.link, url)).toString()
-    }
-    for (const mediaItem of entry.media) {
-      mediaItem.thumbnail = (new URL(mediaItem.thumbnail, url)).toString()
-      for (const encode of mediaItem.encodes) {
-        encode.url = (new URL(encode.url, url)).toString()
-      }
-    }
-  }
-  return json
+  return resolveSearchDataURLs(withSearchDataDefaults(await response.json(), LOCALE), url)
 }
 
 export type WriteIndexOptions = {

@@ -1,0 +1,12 @@
+{
+	// emits dist/: the javascript and type declarations other repos install
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"declaration": true,
+		"sourceMap": true,
+		"rootDir": "src",
+		"outDir": "dist"
+	},
+	"include": ["src"]
+}

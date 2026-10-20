@@ -12,11 +12,13 @@
   },
   "scripts": {
     "check": "tsc -p tsconfig.json",
-    "test": "vitest"
+    "test": "vitest",
+    "convert-to-records": "node scripts/convert-to-records.ts"
   },
   "dependencies": {
     "@find-sign/core": "*",
     "@find-sign/data-io": "*",
+    "@find-sign/records": "*",
     "nanoid": "^6.0.2"
   },
   "devDependencies": {

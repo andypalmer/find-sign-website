@@ -15,6 +15,8 @@ folder; they cover every workspace. `npm run dev` starts the public site and `np
 - `packages/core`: index reading, search, shared utilities and ui, used by both apps.
 - `packages/data-io`: the find-sign-data client, which signs requests with the write identity.
 - `packages/indexer`: builds search indexes from encoded-search-data and publishes them.
+- `packages/records`: the sign record schema, the contract between spiders (in their own repos) and the
+  indexer, with change tracking across spider runs. Built to JavaScript so other repos can install it.
 - `packages/test-helpers`: the fake data server, fixtures and test env shared by every workspace's tests.
 
 Settings are read when each server starts, not built in: each app declares them in `src/env.ts`, and its
