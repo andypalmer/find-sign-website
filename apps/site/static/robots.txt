@@ -1,0 +1,7 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Disallow: /search
+Disallow: /random
+Disallow: /discord
+
+Sitemap: /sitemap.xml

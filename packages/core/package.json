@@ -1,0 +1,27 @@
+{
+  "name": "@find-sign/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Index reading, search, and shared utilities and ui used by every find sign app",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*"
+  },
+  "imports": {
+    "#lib/*": "./src/*"
+  },
+  "scripts": {
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "varint": "^6.0.0"
+  },
+  "peerDependencies": {
+    "svelte": "^5.57.2"
+  },
+  "devDependencies": {
+    "@find-sign/test-helpers": "*",
+    "@types/varint": "^6.0.3"
+  }
+}

@@ -23,5 +23,5 @@ jobs:
           cd ~/find-sign-website
           git pull
           npm i
-          npm run build
+          npm run build -w apps/site
           pm2 reload find-sign-website

@@ -2,11 +2,28 @@
 
 Original find-sign (sign-search repo) was a totally nuts mess of code that was almost impossible to maintain and easy to get lost in. 2022 has been a time for cleaning up that mess, which has included a total, gradual rewrite of everything. This project is a from scratch rewrite of the web searching UI in SvelteKit. It does not include anything to do with building data that this reads and searches.
 
+## Layout
+
+This repo is a set of npm workspaces. Run `npm install`, `npm test`, `npm run check` and `npm run build` from the top
+folder; they cover every workspace. `npm run dev` starts the public site and `npm run dev:admin` the admin app. See
+`dev/README.md` for local https.
+
+- `apps/site`: the public website. Anonymous: no logins or cookies, and it never holds the data server write
+  identity (its build refuses to run if `VITE_SEARCH_WRITE_IDENTITY` is set).
+- `apps/admin`: the admin app (index builds, overrides, users, audit log, `/automation/build-index`). It holds the
+  write identity and runs on its own hostname.
+- `packages/core`: index reading, search, shared utilities and ui, used by both apps.
+- `packages/data-io`: the find-sign-data client, which signs requests with the write identity.
+- `packages/indexer`: builds search indexes from encoded-search-data and publishes them.
+- `packages/test-helpers`: the fake data server, fixtures and test env shared by every workspace's tests.
+
+Each app has its own `.env`; start from its `example.env`.
+
 ## Requirements
 
-1. The website needs a precomputed vector dataset, that translates written words in to a word2vec type of vector space. Auslan Find Sign uses Facebook/Meta's FastText common-crawl english. This is converted to a compact sharded format using [find-sign-vectors-builder](https://github.com/auslan-find-sign/find-sign-vectors-builder) which creates the needed output that can be served on any static http server. The path to this output needs to be configured in `/.env` - take a look at `example.env` to see how this file is made. `find-sign-vector-builder` has instructions on usage, and fasttext provides premade data for almost every popular written language on earth.
+1. The website needs a precomputed vector dataset, that translates written words in to a word2vec type of vector space. Auslan Find Sign uses Facebook/Meta's FastText common-crawl english. This is converted to a compact sharded format using [find-sign-vectors-builder](https://github.com/auslan-find-sign/find-sign-vectors-builder) which creates the needed output that can be served on any static http server. The path to this output needs to be configured in `apps/site/.env` and `apps/admin/.env` - take a look at each app's `example.env` to see how this file is made. `find-sign-vector-builder` has instructions on usage, and fasttext provides premade data for almost every popular written language on earth.
 2. The website needs a search index. This is currently being built with legacy code from the old project. TODO: reimplement a cleaner search index builder.
-3. If you want the discord bot, you'll need to register a dev account on discord, make a bot, and provide the needed secrets in your .env file. the endpoint url to use is `https://yoursite/discord/interactions`. You'll also need to manually visit `/discord/setup` with curl or a web browser to get find-sign-website to upload the discord slash commands to their systems. Consider curling this url as part of your deployment cycle.
+3. If you want the discord bot, you'll need to register a dev account on discord, make a bot, and provide the needed secrets in `apps/site/.env`. the endpoint url to use is `https://yoursite/discord/interactions`. You'll also need to manually visit `/discord/setup` with curl or a web browser to get find-sign-website to upload the discord slash commands to their systems. Consider curling this url as part of your deployment cycle.
 
 ## TODO List:
 

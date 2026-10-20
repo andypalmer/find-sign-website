@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x]
+        node-version: [26.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
@@ -26,7 +26,9 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    - run: cp example.env .env
+    - run: cp apps/site/example.env apps/site/.env
+    - run: cp apps/admin/example.env apps/admin/.env
     - run: npm ci
-    - run: npm run build --if-present
+    - run: npm run build
+    - run: npm run check
     - run: npm test

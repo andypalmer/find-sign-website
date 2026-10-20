@@ -1,0 +1,22 @@
+{
+	// shared compiler settings for the packages/* workspaces, matching what sveltekit generates for the apps
+	"compilerOptions": {
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"types": ["vite/client", "node"],
+		"strict": true,
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"allowJs": true,
+		"checkJs": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"moduleDetection": "force",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		"module": "esnext",
+		"target": "esnext",
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"noEmit": true
+	}
+}

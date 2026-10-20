@@ -1,48 +1,29 @@
 {
-  "name": "find-sign-website",
-  "version": "0.0.1",
+  "name": "find-sign",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Find Sign: Auslan aggregator and semantic search, as npm workspaces",
+  "type": "module",
+  "engines": {
+    "node": ">=22.17"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "preview": "vite preview",
-    "prepare": "svelte-kit sync || echo ''",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "test": "vitest",
-    "coverage": "vitest run --coverage"
+    "dev": "npm run dev -w apps/site",
+    "dev:admin": "npm run dev -w apps/admin",
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run check --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present -- --run",
+    "coverage": "npm run test --workspaces --if-present -- --run --coverage"
   },
   "devDependencies": {
-    "@sveltejs/adapter-node": "^6.0.0",
-    "@sveltejs/kit": "^3.1.0",
-    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^26.6.5",
-    "@types/varint": "^6.0.3",
     "@vitest/coverage-v8": "^5.0.5",
-    "svelte": "^5.57.2",
     "svelte-check": "^4.7.7",
-    "svelte-preprocess": "^6.0.5",
-    "tslib": "^2.8.1",
     "typescript": "~6.0.3",
-    "vite": "^8.3.4",
     "vitest": "^5.0.5"
-  },
-  "type": "module",
-  "dependencies": {
-    "@borderless/base64": "^1.0.1",
-    "@simplewebauthn/browser": "^14.0.0",
-    "@simplewebauthn/server": "^14.0.3",
-    "discord-interactions": "^4.4.0",
-    "fastest-levenshtein": "^1.0.12",
-    "layercake": "^10.0.3",
-    "nanoid": "^6.0.2",
-    "pigeonmark-utils": "^2.0.2",
-    "pigeonmark-xml": "^1.0.1",
-    "svelte-inview": "^4.0.5",
-    "svelte-tags-input": "^7.0.3",
-    "tweetnacl-ts": "^1.0.3",
-    "varint": "^6.0.0"
-  },
-  "imports": {
-    "#lib/*": "./src/lib/*"
   }
 }

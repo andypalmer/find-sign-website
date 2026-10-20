@@ -1,6 +1,6 @@
 # Local TLS-terminating reverse proxy, standing in for production's Traefik.
-# Serves the site and the data server from one https origin, so browsers treat local dev
-# (including phones on the LAN) as a secure context. See dev/README.md.
+# Serves the site and the data server from one https origin, and the admin app on a second port, so
+# browsers treat local dev (including phones on the LAN) as a secure context. See dev/README.md.
 #
 #   DEV_HOST=$(scutil --get LocalHostName).local DEV_IP=$(ipconfig getifaddr en0) caddy run --config dev/Caddyfile
 #
@@ -17,8 +17,13 @@
 		reverse_proxy localhost:{$DATA_PORT:9090}
 	}
 
-	# the site: vite dev (5173) or a production build via `node build` (4173)
+	# the public site: vite dev (5173) or a production build via `node build` (4173)
 	handle {
 		reverse_proxy localhost:{$SITE_PORT:5173}
 	}
+}
+
+# the admin app: vite dev (5174) or a production build (4174). in production it has its own hostname
+{$DEV_HOST:localhost}:{$DEV_ADMIN_HTTPS_PORT:8444}, {$DEV_IP:127.0.0.1}:{$DEV_ADMIN_HTTPS_PORT:8444}, localhost:{$DEV_ADMIN_HTTPS_PORT:8444} {
+	reverse_proxy localhost:{$ADMIN_PORT:5174}
 }
