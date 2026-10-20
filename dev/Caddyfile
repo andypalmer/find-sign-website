@@ -1,0 +1,24 @@
+# Local TLS-terminating reverse proxy, standing in for production's Traefik.
+# Serves the site and the data server from one https origin, so browsers treat local dev
+# (including phones on the LAN) as a secure context. See dev/README.md.
+#
+#   DEV_HOST=$(scutil --get LocalHostName).local DEV_IP=$(ipconfig getifaddr en0) caddy run --config dev/Caddyfile
+#
+# DEV_IP is needed for Chrome on Android, which doesn't resolve .local (mDNS) names.
+{
+	# certificates come from caddy's own local CA; trust it once with `caddy trust`
+	local_certs
+	skip_install_trust
+}
+
+{$DEV_HOST:localhost}:{$DEV_HTTPS_PORT:8443}, {$DEV_IP:127.0.0.1}:{$DEV_HTTPS_PORT:8443}, localhost:{$DEV_HTTPS_PORT:8443} {
+	# data collections, served by serve.mjs (stands in for data.auslan.fyi)
+	handle /collections/* {
+		reverse_proxy localhost:{$DATA_PORT:9090}
+	}
+
+	# the site: vite dev (5173) or a production build via `node build` (4173)
+	handle {
+		reverse_proxy localhost:{$SITE_PORT:5173}
+	}
+}

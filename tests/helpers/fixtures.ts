@@ -3,8 +3,11 @@
 import { DataBase, EncodedSearchDataBase, VectorLibraryBase } from './test-env'
 import type { FakeDataServer } from './fake-data-server'
 import { build as buildVectors } from '../../src/lib/search/precomputed-vectors'
-import { sha256 } from '../../src/lib/functions/hash'
+import { createHash } from 'node:crypto'
 import { bytesToPrefixBits } from '../../src/lib/functions/bits'
+
+// independent of src/lib/functions/hash.ts, so a broken sha256 there makes vector lookups fail
+const sha256 = async (word: string) => new Uint8Array(createHash('sha256').update(word).digest())
 
 export const IndexBase = `${DataBase}index`
 
