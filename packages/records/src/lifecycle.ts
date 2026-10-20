@@ -1,7 +1,8 @@
 // How records change from one spider run to the next. Pure: the run's time and the policies come in as
-// arguments, so the same inputs always give the same records.
+// arguments, so the same inputs always give the same records. Signs are matched across runs by sourceId.
 import { canonicalJSON } from './canonical.ts'
 import { contentHash, sha256, type Digest } from './content-hash.ts'
+import { readableId, type IdPolicy } from './ids.ts'
 import type { MediaItem, Provenance, RecordContent, SignRecord } from './schema.ts'
 
 /** one spider run, identified by when it started (an ISO timestamp) */
@@ -21,18 +22,20 @@ export const defaultRemovalPolicy: RemovalPolicy = { removeAfterMissingRuns: 3 }
 export type LifecycleOptions = {
   digest?: Digest,
   removal?: RemovalPolicy,
+  /** how a new sign's readable id is chosen */
+  ids?: IdPolicy,
 }
 
-/** a sign found by this run: the record it becomes, and how it differs from before */
-export async function observe (previous: SignRecord | undefined, content: RecordContent, run: Run, { digest = sha256 }: LifecycleOptions = {}): Promise<{ record: SignRecord, change: Change }> {
+/** the record for a sign seen for the first time, at the id given (see IdPolicy) */
+export async function firstObservation (content: RecordContent, id: string, run: Run, { digest = sha256 }: LifecycleOptions = {}): Promise<SignRecord> {
+  const provenance: Provenance = { firstSeen: run.at, lastSeen: run.at, lastChanged: run.at, contentHash: await contentHash(content, digest), status: 'present', missingRuns: 0 }
+  return { id, ...content, provenance }
+}
+
+/** a sign found again: its new content, keeping its id, aliases, first sighting and unchanged media's encodes */
+export async function nextObservation (previous: SignRecord, content: RecordContent, run: Run, { digest = sha256 }: LifecycleOptions = {}): Promise<{ record: SignRecord, change: Change }> {
+  if (content.sourceId !== previous.sourceId) throw new Error(`"${content.sourceId}" is a different sign from "${previous.sourceId}"`)
   const hash = await contentHash(content, digest)
-  const media = keepEncodings(previous?.media ?? [], content.media)
-
-  if (!previous) {
-    const provenance: Provenance = { firstSeen: run.at, lastSeen: run.at, lastChanged: run.at, contentHash: hash, status: 'present', missingRuns: 0 }
-    return { record: { ...content, media, provenance }, change: 'new' }
-  }
-
   const changed = hash !== previous.provenance.contentHash
   const provenance: Provenance = {
     ...previous.provenance,
@@ -43,7 +46,8 @@ export async function observe (previous: SignRecord | undefined, content: Record
     missingRuns: 0,
   }
   const change: Change = previous.provenance.status !== 'present' ? 'returned' : changed ? 'changed' : 'unchanged'
-  return { record: { ...content, media, provenance }, change }
+  const record: SignRecord = { id: previous.id, aliases: previous.aliases, ...content, media: keepEncodings(previous.media, content.media), provenance }
+  return { record, change }
 }
 
 /** a sign this run didn't find: missing, then removed once the policy says so */
@@ -61,23 +65,36 @@ export type Reconciled = {
   changes: Record<Change, string[]>,
 }
 
-/** a whole run: every sign discovery found, against the records from before it */
+/** a whole run: every sign discovery found, against the records from before it. New signs get ids in the
+ * order they were found */
 export async function reconcile (previous: readonly SignRecord[], found: readonly RecordContent[], run: Run, options: LifecycleOptions = {}): Promise<Reconciled> {
-  const before = new Map(previous.map(record => [record.id, record]))
+  const { ids = readableId } = options
+  const before = new Map(previous.map(record => [record.sourceId, record]))
+  // ids are never reused, so removed signs' ids and every alias stay taken
+  const taken = new Set(previous.flatMap(record => [record.id, ...(record.aliases ?? [])]))
   const seen = new Set<string>()
   const changes: Record<Change, string[]> = { new: [], changed: [], unchanged: [], returned: [], missing: [], removed: [] }
   const records: SignRecord[] = []
 
   for (const content of found) {
-    if (seen.has(content.id)) throw new Error(`run found the id "${content.id}" more than once`)
-    seen.add(content.id)
-    const { record, change } = await observe(before.get(content.id), content, run, options)
-    records.push(record)
-    changes[change].push(record.id)
+    if (seen.has(content.sourceId)) throw new Error(`run found the sourceId "${content.sourceId}" more than once`)
+    seen.add(content.sourceId)
+    const earlier = before.get(content.sourceId)
+    if (earlier) {
+      const { record, change } = await nextObservation(earlier, content, run, options)
+      records.push(record)
+      changes[change].push(record.id)
+    } else {
+      const id = ids(content, taken)
+      if (taken.has(id)) throw new Error(`id policy chose "${id}", which is already taken`)
+      taken.add(id)
+      records.push(await firstObservation(content, id, run, options))
+      changes.new.push(id)
+    }
   }
 
   for (const record of previous) {
-    if (seen.has(record.id)) continue
+    if (seen.has(record.sourceId)) continue
     const result = markMissing(record, options)
     records.push(result.record)
     changes[result.change].push(record.id)

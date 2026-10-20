@@ -1,8 +1,16 @@
 {
-  "name": "@find-sign/records",
+  "name": "@andypalmer/records",
   "version": "0.0.0",
-  "private": true,
   "description": "The sign record schema: what spiders produce and the indexer consumes, with change tracking",
+  "license": "Unlicense",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andypalmer/find-sign-website.git",
+    "directory": "packages/records"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "type": "module",
   "exports": {
     ".": {

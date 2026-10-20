@@ -38,7 +38,12 @@ describe('record content', () => {
     expect(issues(() => validateContent(sign('cat', { media: [media] })))[0].path).toBe('media.0.encoded.encodes.0.duration')
   })
 
-  it('requires provenance on a full record', () => {
-    expect(issues(() => validateRecord(sign('cat')))[0].path).toBe('provenance')
+  it('requires a readable id and provenance on a full record', () => {
+    expect(issues(() => validateRecord(sign('cat'))).map(x => x.path)).toEqual(['id', 'provenance'])
+  })
+
+  it('only accepts lowercase words joined by hyphens as ids and suggested slugs', () => {
+    expect(issues(() => validateContent(sign('cat', { slug: 'Big Cat' })))[0].path).toBe('slug')
+    expect(() => validateContent(sign('cat', { slug: 'big-cat-2' }))).not.toThrow()
   })
 })

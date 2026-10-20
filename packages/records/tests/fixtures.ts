@@ -15,6 +15,7 @@ export function encodedVideo (name: string, version = '1'): MediaItem {
   }
 }
 
-export function sign (id: string, extra: Partial<RecordContent> = {}): RecordContent {
-  return { id, title: id[0].toUpperCase() + id.slice(1), words: [id], tags: [], media: [video(id)], ...extra }
+/** content titled after its source id: sign('cat') is "Cat", which gets the id "cat" */
+export function sign (sourceId: string, extra: Partial<RecordContent> = {}): RecordContent {
+  return { sourceId, title: sourceId[0].toUpperCase() + sourceId.slice(1), words: [sourceId], tags: [], media: [video(sourceId)], ...extra }
 }

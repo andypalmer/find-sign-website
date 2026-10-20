@@ -1,8 +1,11 @@
-// Converts between today's encoded-search-data files and record files (@find-sign/records), in both
+// Converts between today's encoded-search-data files and record files (@andypalmer/records), in both
 // directions, keeping urls relative to the file as stored. Converting a file to records and back gives the
 // entries readEncodedSearchData would have read from it, apart from the quirks the record schema doesn't
 // allow, which are fixed and reported (see Quirk).
-import { createRecordFile, observe, type Digest, type MediaItem, type ProviderInfo, type RecordContent, type RecordFile, type SignRecord } from '@find-sign/records'
+//
+// An entry's key becomes its record's sourceId, and its old permalink: each record gets a readable id from
+// its title, with the key kept as an alias when they differ, so old urls can still lead to it.
+import { createRecordFile, firstObservation, readableId, type Digest, type IdPolicy, type MediaItem, type ProviderInfo, type RecordContent, type RecordFile, type SignRecord } from '@andypalmer/records'
 import type { EncodedSearchData, EncodedSearchDataEntry, SearchDataEncodedMedia } from '@find-sign/core/orthagonal/types.ts'
 import { withSearchDataDefaults } from '../orthagonal/search-data-defaults.ts'
 
@@ -14,6 +17,8 @@ export type FromEncodedSearchDataOptions = {
   /** for splitting titles into words, when an entry has no words */
   locale?: string,
   digest?: Digest,
+  /** how each record's readable id is chosen */
+  ids?: IdPolicy,
   /** told about each quirk fixed on the way in */
   onQuirk?: (quirk: Quirk) => void,
 }
@@ -22,26 +27,47 @@ export type FromEncodedSearchDataOptions = {
 export type Quirk = { id: string, message: string }
 
 /** records for an encoded-search-data file, as stored (urls not yet resolved) */
-export async function recordFileFromEncodedSearchData (raw: Record<string, Partial<EncodedSearchDataEntry>>, { provider, seenAt, locale, digest, onQuirk = () => {} }: FromEncodedSearchDataOptions): Promise<RecordFile> {
+export async function recordFileFromEncodedSearchData (raw: Record<string, Partial<EncodedSearchDataEntry>>, { provider, seenAt, locale, digest, ids = readableId, onQuirk = () => {} }: FromEncodedSearchDataOptions): Promise<RecordFile> {
   const data = withSearchDataDefaults(raw, locale)
+  // the entry's timestamp is when it was added, so it's the best guess at when it was first seen
+  const firstSeen = (entry: EncodedSearchDataEntry) => entry.timestamp === undefined ? seenAt : new Date(entry.timestamp).toISOString()
+  // earliest first, so of the signs with the same title, the oldest gets the plain id
+  const entries = Object.values(data).sort((a, b) => firstSeen(a).localeCompare(firstSeen(b)) || a.id.localeCompare(b.id))
+
+  // every old permalink stays taken, so a new id can't send an old url to a different sign. A sign may still
+  // take its own old permalink as its id
+  const taken = new Set(entries.map(entry => entry.id))
   const records: SignRecord[] = []
-  for (const entry of Object.values(data)) {
-    // the entry's timestamp is when it was added, so it's the best guess at when it was first seen
-    const firstSeen = entry.timestamp === undefined ? seenAt : new Date(entry.timestamp).toISOString()
-    const { record } = await observe(undefined, contentFromEntry(entry, message => onQuirk({ id: entry.id, message })), { at: firstSeen }, { digest })
-    records.push({ ...record, provenance: { ...record.provenance, lastSeen: seenAt } })
+  for (const entry of entries) {
+    const content = contentFromEntry(entry, message => onQuirk({ id: entry.id, message }))
+    taken.delete(entry.id)
+    const id = ids(content, taken)
+    taken.add(id).add(entry.id)
+    const record = await firstObservation(content, id, { at: firstSeen(entry) }, { digest })
+    records.push({ ...record, aliases: id === entry.id ? undefined : [entry.id], provenance: { ...record.provenance, lastSeen: seenAt } })
   }
   return createRecordFile(providerInfo(provider, data), records)
 }
 
-/** the encoded-search-data entries for a record file, as stored. Removed records and media not yet encoded
- * are left out by default (unencoded media can't be played) */
-export function encodedSearchDataFromRecordFile (file: RecordFile, { include = (record: SignRecord) => record.provenance.status !== 'removed' } = {}): EncodedSearchData {
+export type ToEncodedSearchDataOptions = {
+  /** what keys the entries: their readable ids, or their sourceIds, which for converted data are the old
+   * permalinks the search site serves today */
+  keys: 'id' | 'sourceId',
+  /** which records to include: by default, all but removed ones */
+  include?: (record: SignRecord) => boolean,
+}
+
+/** the encoded-search-data entries for a record file, as stored. Media not yet encoded is left out, as it
+ * can't be played */
+export function encodedSearchDataFromRecordFile (file: RecordFile, { keys, include = record => record.provenance.status !== 'removed' }: ToEncodedSearchDataOptions): EncodedSearchData {
   const data: EncodedSearchData = {}
-  for (const record of file.records) {
+  // oldest first, as files were written: record files are sorted by id instead
+  const byAge = [...file.records].sort((a, b) => a.provenance.firstSeen.localeCompare(b.provenance.firstSeen) || a.sourceId.localeCompare(b.sourceId))
+  for (const record of byAge) {
     if (!include(record)) continue
-    data[record.id] = {
-      id: record.id,
+    const key = record[keys]
+    data[key] = {
+      id: key,
       title: record.title,
       words: record.words,
       link: record.link,
@@ -60,7 +86,7 @@ export function encodedSearchDataFromRecordFile (file: RecordFile, { include = (
 
 function contentFromEntry (entry: EncodedSearchDataEntry, quirk: (message: string) => void): RecordContent {
   return {
-    id: entry.id,
+    sourceId: entry.id,
     title: entry.title,
     words: entry.words,
     body: entry.body,

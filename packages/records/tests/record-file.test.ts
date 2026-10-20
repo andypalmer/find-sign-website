@@ -17,9 +17,10 @@ describe('record files', () => {
     expect(JSON.parse(text).records.map((r: { id: string }) => r.id)).toEqual(['cat', 'dog'])
   })
 
-  it('reject duplicate ids and unknown versions', async () => {
-    const { records } = await reconcile([], [sign('cat')], { at: '2026-10-20T00:00:00.000Z' })
-    expect(() => createRecordFile(provider, [...records, ...records])).toThrow(RecordValidationError)
+  it('reject repeated sourceIds, ids clashing with aliases, and unknown versions', async () => {
+    const { records } = await reconcile([], [sign('cat'), sign('dog')], { at: '2026-10-20T00:00:00.000Z' })
+    expect(() => createRecordFile(provider, [records[0], { ...records[1], sourceId: 'cat' }])).toThrow('sourceIds must be unique')
+    expect(() => createRecordFile(provider, [records[0], { ...records[1], aliases: ['cat'] }])).toThrow('ids and aliases must all be different')
     const file = { ...createRecordFile(provider, records), version: 2 }
     expect(() => parseRecordFile(JSON.stringify(file))).toThrow(RecordValidationError)
   })

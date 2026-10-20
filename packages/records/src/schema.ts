@@ -2,7 +2,10 @@
 // Who writes what:
 //   spiders write RecordContent (what a provider says about a sign) and its media sources
 //   the encoder writes each media item's `encoded` (thumbnails and encodes)
-//   the framework writes `provenance` (when it was seen, whether it changed)
+//   the framework writes `id` and `aliases` (the sign's address) and `provenance` (when it was seen, whether it
+//   changed)
+// A sign has two identities: `sourceId`, the spider's key for finding the same sign again on the next run,
+// and `id`, the readable address in its url, assigned once and then kept.
 // URLs may be relative: they resolve against the url of the record file holding them, so a data tree can
 // move hosts without rewriting its records.
 import * as v from 'valibot'
@@ -10,6 +13,13 @@ import * as v from 'valibot'
 const text = v.pipe(v.string(), v.minLength(1))
 const url = v.pipe(v.string(), v.minLength(1))
 const timestamp = v.pipe(v.string(), v.isoTimestamp())
+
+/** a readable, url-safe id: lowercase letters and digits, in words joined by single hyphens */
+export const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const slugRule = v.regex(slugPattern, 'must be lowercase letters and digits, in words joined by hyphens')
+const slug = v.pipe(v.string(), slugRule, v.maxLength(64))
+// shorter, leaving room for a -2 when another sign already has it
+const suggestedSlug = v.pipe(v.string(), slugRule, v.maxLength(56))
 
 export const Author = v.strictObject({
   id: v.optional(text),
@@ -65,8 +75,11 @@ export const MediaItem = v.strictObject({
 
 /** what a spider says about one sign */
 export const RecordContent = v.strictObject({
-  /** stable within its provider and never reused: it's part of the sign's public url */
-  id: text,
+  /** the spider's key for this sign: stable across runs, unique within its provider, never reused. It needn't
+   * be readable (a video id and start time is fine) */
+  sourceId: text,
+  /** a suggestion for the sign's readable id, when the provider has a better one than its title */
+  slug: v.optional(suggestedSlug),
   /** a phrase is a concept (an idiom, a sentence) rather than a single sign; unset means 'sign' */
   kind: v.optional(v.picklist(['sign', 'phrase'])),
   title: text,
@@ -102,6 +115,11 @@ export const Provenance = v.strictObject({
 })
 
 export const SignRecord = v.strictObject({
+  /** the sign's readable address within its provider, as in /sign/<provider>/<id>: assigned when first seen,
+   * then kept even if the title changes, and never reused */
+  id: slug,
+  /** earlier ids (old permalinks) that still lead to this sign */
+  aliases: v.optional(v.array(text)),
   ...RecordContent.entries,
   provenance: Provenance,
 })
@@ -114,6 +132,10 @@ export const ProviderInfo = v.strictObject({
   link: v.optional(url),
 })
 
+function unique (values: string[]) {
+  return new Set(values).size === values.length
+}
+
 /** one provider's records, as stored */
 export const RecordFile = v.pipe(
   v.strictObject({
@@ -122,7 +144,8 @@ export const RecordFile = v.pipe(
     provider: ProviderInfo,
     records: v.array(SignRecord),
   }),
-  v.check(file => new Set(file.records.map(r => r.id)).size === file.records.length, 'record ids must be unique'),
+  v.check(file => unique(file.records.map(r => r.sourceId)), 'record sourceIds must be unique'),
+  v.check(file => unique(file.records.flatMap(r => [r.id, ...(r.aliases ?? [])])), 'record ids and aliases must all be different'),
 )
 
 export type Author = v.InferOutput<typeof Author>
