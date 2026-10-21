@@ -39,16 +39,16 @@ browser ──https──▶ <host>:8443 (caddy, terminates TLS)
 ## Running
 
 ```sh
-export DEV_HOST="$(scutil --get LocalHostName | tr A-Z a-z).local"
-export DEV_IP="$(ipconfig getifaddr en0)"  # the certificate covers both names
-# server side rendering fetches the data over https too, so node must trust caddy's CA
-export NODE_EXTRA_CA_CERTS="$HOME/Library/Application Support/Caddy/pki/authorities/local/root.crt"
-
-node serve.mjs 9090 /path/to/auslan              # data server (from the parent folder)
-caddy run --config dev/Caddyfile                 # proxy, SITE_PORT / ADMIN_PORT default to 5173 / 5174
-npm run dev                                      # public site: https://$DEV_HOST:8443/
-npm run dev:admin                                # admin app: https://$DEV_HOST:8444/
+dev/start.sh            # vite dev servers, reloading as you edit
+dev/start.sh --build    # production builds, as they run behind Traefik
 ```
+
+This runs everything in the terminal, each line prefixed with where it came from (`[data]`, `[proxy]`,
+`[search]`, `[admin]`). It prints the addresses to open: the search site on port 8443 and admin on 8444. Ctrl-C
+stops it all. It expects `serve.mjs` and the collections in the folder above this repo (or set `DATA_ROOT`).
+
+It works out this machine's LAN address each time it starts and points the apps' data urls at it, overriding
+the ones in their `.env` files. So when the address changes, just restart it.
 
 Both apps run on the same hostname locally, so the admin login cookie is also sent to the public site
 (cookies ignore ports). The site never reads it. In production the admin app has its own hostname.
