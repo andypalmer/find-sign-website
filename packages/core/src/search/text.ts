@@ -302,3 +302,23 @@ export function checkQueryContainsWords (query: string): boolean {
   const requirements = getQueryRequirements(parsed)
   return requirements.includes('words')
 }
+
+/**
+ * The phrase a query's words make, in order, when it's plain words (with any tags or authors it's filtered by),
+ * so a sign can be found by an English phrase it translates: "spill the beans" finds GOSSIP. Not for a single
+ * word, nor a query with OR, whose words aren't one phrase
+ */
+export function queryPhrase (ast: QueryNode | undefined): { words: string[], filters: QueryNode | undefined } | undefined {
+  const words: string[] = []
+  const filters: QueryNode[] = []
+  const walk = (node: QueryNode): boolean => {
+    if (node.type === 'and') return walk(node.left) && walk(node.right)
+    if (node.type === 'or') return false
+    if (node.type === 'word') words.push(node.string)
+    else filters.push(node)
+    return true
+  }
+  if (!ast || !walk(ast) || words.length < 2) return undefined
+  const filter = filters.reduce<QueryNode | undefined>((left, right) => left ? { type: 'and', left, right } : right, undefined)
+  return { words, filters: filter }
+}

@@ -10,7 +10,7 @@ const feedEntries = 20
 
 export const load: PageServerLoad = immediateResponseCache(async ({ url, setHeaders }) => {
   const [searchFeed, rssFeed] = await Promise.all([
-    getUpdatesFeed({ url, page: 0, length: feedEntries, extended: true }),
+    getUpdatesFeed({ url, page: 0, length: feedEntries, extended: true, frontPage: true }),
     (async function () {
       try {
         return await readFeed(NEWS_RSS)

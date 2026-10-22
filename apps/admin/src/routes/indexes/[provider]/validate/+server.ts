@@ -1,7 +1,7 @@
 import { createProgressLog, nextUpdateResponse } from '#lib/progress/progress-log.ts'
 import { loginRedirect } from '#lib/passkey/site-auth.ts'
 import type { RequestHandler } from './$types'
-import { readEncodedSearchData } from '@find-sign/indexer/orthagonal/write.ts'
+import { readEncodedSearchData } from '#lib/indexing.ts'
 import { validateEncodedSearchDataEntry } from '@find-sign/core/orthagonal/types.ts'
 import { ENCODED_SEARCH_DATAS } from '$app/env/private'
 

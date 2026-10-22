@@ -1,5 +1,5 @@
 import { decodeFilename } from '@find-sign/core/models/filename-codec.ts'
-import buildSearchIndex from '@find-sign/indexer/orthagonal/build.ts'
+import { buildSearchIndex } from '#lib/indexing.ts'
 import { availableIndexes } from '@find-sign/core/search/search.ts'
 import { AUTOMATION_KEY } from '$app/env/private'
 

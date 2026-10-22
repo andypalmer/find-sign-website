@@ -46,6 +46,18 @@ A version tag pushed by hand (`git tag v1.4.2 && git push origin v1.4.2`) also p
 
 For a beta server, run it with `FIND_SIGN_TAG=main`.
 
+## Main and beta data
+
+The main site and a beta can serve different builds of the same data. Each app's `SEARCH_INDEX_NAME` is the
+folder in the find-sign collection its indexes are in: `index` for find.auslan.fyi, `beta` for beta.auslan.fyi.
+The beta's admin app builds into `beta` (or run the indexer with `--index-name beta`), so a build can be tried
+there before it's built into `index` for everyone.
+
+What's in the collection once is shared by both: the encoded videos, overrides, claims, and the build's record
+files, so a sign keeps the same id on both sites, and curators' work reaches each site when it's next built. An
+index is about 45 MB, while the videos are gigabytes, so only the indexes are kept twice. Encoded files are named
+for their source video, so re-encoding a changed video never overwrites what the other site still plays.
+
 ## Rolling out a new version
 
 Once CI has pushed new images:
@@ -68,5 +80,10 @@ it to follow `:production` again.
 - release-please opens its PR with the workflow's own token, which GitHub only allows once it's enabled: Settings
   → Actions → General → Workflow permissions → "Allow GitHub Actions to create and approve pull requests". (PRs
   opened with that token don't run CI themselves; their commits are tested when merged.)
+- CI installs the `@andypalmer` packages from GitHub Packages with the workflow's own token, which can only read
+  them once this repo is allowed to: on each package's page (under find-sign-pipeline's Packages), Package
+  settings → Manage Actions access → Add repository → find-sign-website, with the Read role. The image builds pass
+  the same token to the Dockerfile as the `npmrc` build secret; to build an image by hand, pass your own:
+  `docker build --secret id=npmrc,src=$HOME/.npmrc .`
 - The first image push creates both packages as private. Make each public once, under the package's settings on
   GitHub (Package settings → Change visibility), so servers can pull without logging in.

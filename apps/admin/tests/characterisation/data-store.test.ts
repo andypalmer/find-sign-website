@@ -7,7 +7,7 @@ import { readFile, writeFile, exists, listFiles, listFilenames, deletePath, bulk
 import { createLicense } from '@find-sign/data-io/auth.ts'
 import { validateUsername, createUser, getUser, grantPower, removePower, userHasPower, listUsers, deleteUser } from '../../src/lib/models/user'
 import { writeAuditLog, listAuditLogs, readAuditLog } from '../../src/lib/models/audit-log'
-import { listOverrides, getOverrideFor, setOverrideFor, deleteOverrideFor } from '@find-sign/indexer/models/index-override.ts'
+import { listOverrides, getOverrideFor, setOverrideFor, deleteOverrideFor } from '#lib/models/index-override.ts'
 import { decodeHex, sign_open } from 'tweetnacl-ts'
 
 let server: FakeDataServer

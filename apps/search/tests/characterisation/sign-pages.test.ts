@@ -34,6 +34,28 @@ describe('sign pages', () => {
     expect(moved).toMatchObject({ status: 308, location: '/sign/alpha/dog?carousel0=1' })
   })
 
+  it('hands the index over to the page an old permalink redirects to, so it isn\'t fetched again', async () => {
+    const aliases = `${IndexBase}/alpha/aliases.json`
+    server.set(aliases, { ...server.getJSON(aliases), entries: [null, ['dog1a'], null] })
+    // using up anything an earlier test's redirect handed over
+    await loadSignPage({ params: { index: 'alpha', id: 'dog' }, url: new URL('http://site.test/sign/alpha/dog') } as any)
+    await thrown(() => loadSignPage({ params: { index: 'alpha', id: 'dog1a' }, url: new URL('http://site.test/sign/alpha/dog1a') } as any))
+    server.resetRequests()
+    const sign: any = await loadSignPage({ params: { index: 'alpha', id: 'dog' }, url: new URL('http://site.test/sign/alpha/dog') } as any)
+    expect(sign.result.title).toBe('Dog')
+    expect(server.requestsTo(/alpha\/(meta|id|aliases)\.json/)).toEqual([])
+
+    // an index rebuilt since the redirect: the page looks again
+    await thrown(() => loadSignPage({ params: { index: 'alpha', id: 'dog1a' }, url: new URL('http://site.test/sign/alpha/dog1a') } as any))
+    await publishBuiltIndexes(server)
+    expect(((await loadSignPage({ params: { index: 'alpha', id: 'dog' }, url: new URL('http://site.test/sign/alpha/dog') } as any)) as any).result.title).toBe('Dog')
+
+    // only once: the next load checks the index again
+    server.resetRequests()
+    await loadSignPage({ params: { index: 'alpha', id: 'dog' }, url: new URL('http://site.test/sign/alpha/dog') } as any)
+    expect(server.requestsTo(/alpha\/meta\.json/)).toHaveLength(1)
+  })
+
   it('still serves indexes built before aliases existed', async () => {
     const meta = server.getJSON(`${IndexBase}/alpha/meta.json`)
     delete meta.columns.aliases

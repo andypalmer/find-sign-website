@@ -1,5 +1,5 @@
 import { expect, describe, it } from 'vitest'
-import { tokenize, parseQuery, compileQuery, getQueryRequirements } from '../src/search/text'
+import { tokenize, parseQuery, compileQuery, getQueryRequirements, queryPhrase } from '../src/search/text'
 import type { QueryNode, QueryTag, QueryWord, QueryOrNode, QueryAndNode, QueryAuthor } from '../src/search/text'
 import type { LoadedOrthagonalEntry } from '../src/orthagonal/read'
 
@@ -261,5 +261,16 @@ describe('/src/lib/search/text getQueryRequirements()', () => {
     expect(getQueryRequirements(parseQuery('@someone'))).to.deep.equal(['author'])
     expect(getQueryRequirements(parseQuery('-@user'))).to.deep.equal(['author'])
     expect(getQueryRequirements(parseQuery('@a OR @b'))).to.deep.equal(['author'])
+  })
+})
+describe('queryPhrase()', () => {
+  it('gives a query\'s words in order, with the tags and authors that filter it', () => {
+    expect(queryPhrase(parseQuery('spill the beans'))).toEqual({ words: ['spill', 'the', 'beans'], filters: undefined })
+    expect(queryPhrase(parseQuery('#nsw (spill the beans)'))).toMatchObject({ words: ['spill', 'the', 'beans'], filters: { type: 'tag', string: 'nsw' } })
+  })
+
+  it('gives nothing for one word, or words joined by OR', () => {
+    expect(queryPhrase(parseQuery('beans'))).toBeUndefined()
+    expect(queryPhrase(parseQuery('spill OR beans'))).toBeUndefined()
   })
 })

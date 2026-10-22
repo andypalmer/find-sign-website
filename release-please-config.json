@@ -6,14 +6,6 @@
       "release-type": "node",
       "package-name": "find-sign",
       "include-component-in-tag": false,
-      "changelog-path": "CHANGELOG.md",
-      "exclude-paths": ["packages/records"]
-    },
-    "packages/records": {
-      "release-type": "node",
-      "package-name": "@andypalmer/records",
-      "component": "records",
-      "include-component-in-tag": true,
       "changelog-path": "CHANGELOG.md"
     }
   }

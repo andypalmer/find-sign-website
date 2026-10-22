@@ -57,9 +57,21 @@ describe('search() ranking', () => {
   })
 
   it('filters by tags, keeping index order when ranks tie', async () => {
-    expect(ids(await search('#vehicle', 0, 10))).toEqual(['alpha:car', 'beta:red-truck'])
     expect(ids(await search('#animal -#invented', 0, 10))).toEqual(['alpha:cat', 'alpha:dog'])
     expect(ids(await search('#animal cat', 0, 10))).toEqual(['alpha:cat', 'beta:kitten', 'alpha:dog'])
+  })
+
+  it('ranks naughty signs after the signs that match as well', async () => {
+    // car is lexis.crude, so it comes after red truck, though both match #vehicle exactly and alpha comes first
+    expect(ids(await search('#vehicle', 0, 10))).toEqual(['beta:red-truck', 'alpha:car'])
+  })
+
+  it('puts a sign first when the whole query is an English phrase it translates, keeping the query\'s tags', async () => {
+    expect(ids(await search('raining cats and dogs', 0, 1))).toEqual(['alpha:dog'])
+    expect(ids(await search('#animal (raining cats and dogs)', 0, 1))).toEqual(['alpha:dog'])
+    expect(ids(await search('#vehicle (raining cats and dogs)', 0, 10))).not.toContain('alpha:dog')
+    // one word is a word, not a phrase
+    expect(ids(await search('raining', 0, 10))).not.toContain('alpha:dog')
   })
 
   it('filters by author', async () => {
@@ -98,13 +110,15 @@ describe('compileQuery() word fallback quirk', () => {
 describe('search() network traffic', () => {
   const summary = () => server.requests.map(r => `${r.path.replace(`${IndexBase}/`, '')} ${r.cache}`).sort()
 
-  it('a word search fetches global vectors, meta and words for every index, plus one shard per result', async () => {
+  it('a word search fetches global vectors, meta, words and tags for every index, plus one shard per result', async () => {
     await search('cat', 0, 1)
     expect(summary()).toEqual([
       'alpha/meta.json no-cache',
       'alpha/shard-0.json no-store',
+      'alpha/tags.json default',
       'alpha/words.json default',
       'beta/meta.json no-cache',
+      'beta/tags.json default',
       'beta/words.json default',
       'global-vectors.lps no-cache',
     ])
@@ -122,9 +136,9 @@ describe('search() network traffic', () => {
     await search('#vehicle', 0, 1)
     expect(summary()).toEqual([
       'alpha/meta.json no-cache',
-      'alpha/shard-0.json no-store',
       'alpha/tags.json default',
       'beta/meta.json no-cache',
+      'beta/shard-0.json no-store',
       'beta/tags.json default',
     ])
   })

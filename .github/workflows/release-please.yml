@@ -1,8 +1,6 @@
-# Keeps a release PR open on main for each component with unreleased changes: the app (tags v1.2.3) and the
-# records package (tags records-v1.2.3), each with its next version (from Conventional Commit messages) and
-# changelog. Merging it tags each release and creates GitHub releases; this workflow then tests that commit
-# and publishes: versioned images for an app release, @andypalmer/records to GitHub Packages for a records
-# release. Config: release-please-config.json, .release-please-manifest.json
+# Keeps a release PR open on main, with the next version (from Conventional Commit messages) and the
+# changelog. Merging it tags the release (v1.2.3) and creates a GitHub release; this workflow then tests that
+# commit and publishes versioned images. Config: release-please-config.json, .release-please-manifest.json
 
 name: Release Please
 
@@ -20,14 +18,16 @@ jobs:
     outputs:
       app_released: ${{ steps.release.outputs.release_created }}
       app_version: ${{ steps.release.outputs.version }}
-      records_released: ${{ steps.release.outputs['packages/records--release_created'] }}
     steps:
     - id: release
       uses: googleapis/release-please-action@v4
 
   test:
     needs: release-please
-    if: needs.release-please.outputs.app_released == 'true' || needs.release-please.outputs.records_released == 'true'
+    if: needs.release-please.outputs.app_released == 'true'
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/test.yml
 
   images:
@@ -39,24 +39,3 @@ jobs:
     uses: ./.github/workflows/images.yml
     with:
       version: ${{ needs.release-please.outputs.app_version }}
-
-  publish-records:
-    needs: [release-please, test]
-    if: needs.release-please.outputs.records_released == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 26.x
-        cache: 'npm'
-        registry-url: 'https://npm.pkg.github.com'
-        scope: '@andypalmer'
-    # installing builds the package (its prepare script), and publishing builds it again
-    - run: npm ci
-    - run: npm publish -w packages/records
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

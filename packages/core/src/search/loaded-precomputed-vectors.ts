@@ -1,23 +1,8 @@
-import type { VectorLibrary, WordVector } from '#lib/search/precomputed-vectors.ts'
-import { open as pvOpen, lookup as pvLookup } from '#lib/search/precomputed-vectors.ts'
-import lru from '#lib/functions/lru.ts'
+// the word vector library at the VECTOR_INDEX setting, opened once, with recent lookups remembered
+import { vectorLibrary } from '@andypalmer/vectors'
 import { VECTOR_INDEX } from '$app/env/public'
 
-let vectorLibrary: VectorLibrary | undefined = undefined
-export async function preload (): Promise<VectorLibrary> {
-  if (!vectorLibrary) {
-    vectorLibrary = await pvOpen(VECTOR_INDEX)
-  }
+const library = vectorLibrary(VECTOR_INDEX)
 
-  return vectorLibrary
-}
-
-const cacheSize = 250
-const lookupCache = lru(cacheSize)
-// const lookupCache: {string: string, vector: WordVector}[] = []
-// proxy to precomputed-vectors.lookup, but caches the most recently used 250 queries in memory
-export async function lookup (word: string): Promise<WordVector | undefined> {
-  return await lookupCache<WordVector>(word, async (word) =>
-    pvLookup(vectorLibrary || await preload(), word)
-  )
-}
+export const preload = library.preload
+export const lookup = library.lookup

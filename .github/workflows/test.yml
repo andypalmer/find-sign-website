@@ -9,6 +9,10 @@ jobs:
   test:
 
     runs-on: ubuntu-latest
+    # the @andypalmer packages are on GitHub Packages, installed with this workflow's token
+    permissions:
+      contents: read
+      packages: read
 
     strategy:
       matrix:
@@ -22,7 +26,11 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@andypalmer'
     - run: npm ci
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - run: npm run build
     - run: npm run check
     - run: npm test

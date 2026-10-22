@@ -15,13 +15,15 @@
     "test": "vitest"
   },
   "dependencies": {
-    "varint": "^6.0.0"
+    "@andypalmer/find-sign-util": "^0.1.0",
+    "@andypalmer/orthagonal": "^0.1.0",
+    "@andypalmer/tags": "^0.1.0",
+    "@andypalmer/vectors": "^0.1.0"
   },
   "peerDependencies": {
     "svelte": "^5.57.2"
   },
   "devDependencies": {
-    "@find-sign/test-helpers": "*",
-    "@types/varint": "^6.0.3"
+    "@find-sign/test-helpers": "*"
   }
 }

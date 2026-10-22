@@ -1,8 +1,9 @@
-import { loadIndex, OutdatedError, type LoadedOrthagonalIndex } from '#lib/orthagonal/read.ts'
+import { loadIndex, OutdatedError, type LoadedOrthagonalEntry, type LoadedOrthagonalIndex } from '#lib/orthagonal/read.ts'
 import type { EncodedSearchDataEntry } from '#lib/orthagonal/types.ts'
 import { lookup } from '#lib/search/loaded-precomputed-vectors.ts'
 import rank from '#lib/search/search-rank.ts'
-import { checkQueryContainsWords, compileQuery } from '#lib/search/text.ts'
+import { checkQueryContainsWords, compileQuery, compileQueryAST, parseQuery, queryPhrase } from '#lib/search/text.ts'
+import { normalizePhrase } from '@andypalmer/orthagonal'
 import normalizeWord from '#lib/orthagonal/normalize-word.ts'
 import { fn } from '#lib/models/filename-codec.ts'
 import openGlobalVectors from './global-vectors'
@@ -51,6 +52,10 @@ export async function getSearchLibrary (limitLibraries: string[] | false = false
   return collection
 }
 
+// the rank of a sign whose English phrase is the query: well before any match by words, which start at 0, even
+// with the spread of its words and a naughty sign's penalty added
+const phraseMatch = -10
+
 // this is the main guts of the search engine, queries come in, and results come out
 export async function search (query: string, start: number, length: number, forceReload = false): Promise<SearchResponse> {
   // load the globalVector cache, this file contains a word-vector pairing for every word that
@@ -83,8 +88,19 @@ export async function search (query: string, start: number, length: number, forc
     }
   })
 
-  // load the search libraries, only bothering to fetch the columns necessary to run the rank function
-  const { requirements: columns, rank: rankFn } = compiledQuery
+  // a query of several words may be an English phrase a sign translates, which puts it first ("spill the beans"
+  // finds GOSSIP), as long as the query's tags and authors let it through
+  const phrased = queryPhrase(parseQuery(query))
+  const phrase = phrased && normalizePhrase(phrased.words.join(' '))
+  const passes = phrased && await compileQueryAST(phrased.filters)
+  const rankFn = phrased ? (entry: LoadedOrthagonalEntry) => {
+    if (passes!(entry) < Infinity && entry.englishPhrases?.some(english => normalizePhrase(english) === phrase)) return phraseMatch
+    return compiledQuery.rank(entry)
+  } : compiledQuery.rank
+
+  // load the search libraries, only bothering to fetch the columns necessary to run the rank function, and tags,
+  // which rank uses to put naughty signs after the others
+  const columns = [...new Set([...compiledQuery.requirements, 'tags', ...(phrased ? ['englishPhrases'] : [])])]
   const library = await getSearchLibrary(false, columns, forceReload, globalVectors)
 
   // sort the libraries in to one set of search results

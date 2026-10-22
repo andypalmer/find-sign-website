@@ -1,6 +1,9 @@
+# syntax=docker/dockerfile:1
 # Builds one of the apps in apps/: the public search site (default) or the admin app
-#   docker build -t find-sign-search .
-#   docker build -t find-sign-admin --build-arg APP=admin .
+#   docker build -t find-sign-search --secret id=npmrc,src=$HOME/.npmrc .
+#   docker build -t find-sign-admin --secret id=npmrc,src=$HOME/.npmrc --build-arg APP=admin .
+# The npmrc secret holds a GitHub token with read:packages, for the @andypalmer packages on GitHub Packages. It's
+# mounted only while installing, so it's in no layer of either stage.
 # The image holds no settings: give the container its environment (each app's example.env lists them),
 # e.g. with env_file in deploy/compose.yaml. CI publishes both images to ghcr.io
 
@@ -9,16 +12,13 @@ FROM node:26-alpine AS builder
 ARG APP=search
 WORKDIR /app
 # workspace manifests first, so dependencies stay cached until one changes
-COPY package*.json ./
+COPY package*.json .npmrc ./
 COPY apps/search/package.json apps/search/
 COPY apps/admin/package.json apps/admin/
 COPY packages/core/package.json packages/core/
 COPY packages/data-io/package.json packages/data-io/
-COPY packages/indexer/package.json packages/indexer/
 COPY packages/test-helpers/package.json packages/test-helpers/
-# records builds itself to dist/ when installed (its prepare script), so it needs its source here
-COPY packages/records packages/records
-RUN npm ci
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm ci
 COPY . .
 RUN npm run build -w apps/$APP
 

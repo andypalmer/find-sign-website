@@ -56,6 +56,9 @@ jobs:
       with:
         context: .
         build-args: APP=${{ matrix.app }}
+        # for installing the @andypalmer packages from GitHub Packages; a secret mount, so it's in no layer
+        secrets: |
+          npmrc=//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

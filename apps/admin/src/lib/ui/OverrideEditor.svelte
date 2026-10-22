@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { IndexOverride } from '@find-sign/indexer/models/index-override.ts'
+  import type { IndexOverride } from '#lib/models/index-override.ts'
   import type { EncodedSearchDataEntry } from '@find-sign/core/orthagonal/types.ts'
   import { createEventDispatcher } from 'svelte'
 

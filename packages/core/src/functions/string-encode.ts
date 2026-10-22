@@ -1,10 +1,2 @@
-
-const encoder = new TextEncoder()
-export function stringToBytes (str: string): Uint8Array {
-  return encoder.encode(str)
-}
-
-const decoder = new TextDecoder()
-export function bytesToString (bytes: Uint8Array): string {
-  return decoder.decode(bytes)
-}
+// moved to the find-sign-pipeline repo; re-exported so imports here keep working
+export { bytesToString, stringToBytes } from '@andypalmer/find-sign-util'

@@ -78,6 +78,8 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
+# any other environment's settings, such as .env.cloudflare: they hold secrets
+.env.*
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

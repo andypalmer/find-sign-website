@@ -1,19 +1,23 @@
 import { resolve } from '$app/paths'
 import { encodeFilename } from '@find-sign/core/models/filename-codec.ts'
 import { getSearchLibrary } from '@find-sign/core/search/search.ts'
+import { inDiscoveryOrder, interleavingProviders } from '#lib/search/discovery-order.ts'
+import { isNaughty } from '@find-sign/core/search/naughty.ts'
 
 export const prerender = false
 
-export async function getUpdatesFeed ({ page = 0, length = 30, url, extended = false }: { page?: number, length?: number, url: URL, extended?: boolean }) {
+/** frontPage: for the front page, whose visitors haven't asked for anything: naughty signs are left out, and
+ * each day's providers take turns */
+export async function getUpdatesFeed ({ page = 0, length = 30, url, extended = false, frontPage = false }: { page?: number, length?: number, url: URL, extended?: boolean, frontPage?: boolean }) {
 
-  const libraries = await getSearchLibrary(false, ['timestamp'])
-  let updates = Object.values(libraries).flatMap(x => x.entries)
+  const libraries = await getSearchLibrary(false, ['timestamp', 'sourceCreated', 'sourceUpdated', ...(frontPage ? ['tags'] : [])])
+  const entries = Object.values(libraries).flatMap(x => x.entries)
+  const ordered = frontPage
+    ? interleavingProviders(inDiscoveryOrder(entries.filter(entry => !isNaughty(entry))), entry => entry.indexURL)
+    : inDiscoveryOrder(entries)
+  const updates = ordered.slice(length * page, length * (page + 1))
 
-  updates = updates.filter(x => x.timestamp && x.timestamp > 0)
-  updates = updates.sort((a, b) => (b.timestamp as number) - (a.timestamp as number))
-  updates = updates.slice(length * page, length * (page + 1))
-
-  const loaded = await Promise.all(updates.map(x => x.load()))
+  const loaded = await Promise.all(updates.map(async ({ entry, date }) => ({ ...await entry.load(), date })))
 
   const version = 'https://jsonfeed.org/version/1.1'
 
@@ -42,7 +46,7 @@ export async function getUpdatesFeed ({ page = 0, length = 30, url, extended = f
               name: provider.name,
               url: provider.link
             }],
-        date_published: (new Date(entry.timestamp as number)).toISOString(),
+        date_published: (new Date(entry.date)).toISOString(),
         content_text: `${entry.body}`,
         attachments: entry.media.flatMap((x, idx) => {
           return x.encodes.map(x => {

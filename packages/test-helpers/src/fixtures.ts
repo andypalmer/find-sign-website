@@ -1,6 +1,9 @@
 // Shared fixture data for characterisation tests: two small providers ("alpha" and "beta"),
 // a tiny 4-dimensional word vector library, and helpers to publish them to a FakeDataServer.
-import { DataBase, EncodedSearchDataBase, VectorLibraryBase } from './test-env'
+import { DataBase, EncodedSearchDataBase, VectorLibraryBase, writeIdentity } from './test-env'
+import { buildSearchIndex } from '@andypalmer/indexer'
+import { findSignData } from '@andypalmer/data-store'
+import { vectorLibrary } from '@andypalmer/vectors'
 import type { FakeDataServer } from './fake-data-server'
 import { build as buildVectors } from '@find-sign/core/search/precomputed-vectors.ts'
 import { createHash } from 'node:crypto'
@@ -46,7 +49,7 @@ export function alphaSearchData () {
       media: [media('cat')], timestamp: 3000, provider: alphaProvider,
     },
     dog: {
-      title: 'Dog', words: ['dog'], tags: ['animal'], body: 'A canine.',
+      title: 'Dog', words: ['dog'], tags: ['animal'], body: 'A canine.', englishPhrases: ['Raining cats and dogs!'],
       link: 'https://alpha.test/dog', media: [media('dog')], timestamp: 1000, provider: alphaProvider,
     },
     car: {
@@ -98,12 +101,17 @@ export function publishSearchData (server: FakeDataServer, data: { [provider: st
 export async function publishBuiltIndexes (server: FakeDataServer) {
   await publishVectorLibrary(server)
   publishSearchData(server)
-  // the specifier is a variable so TypeScript doesn't type-check the indexer as part of every app that uses
-  // these fixtures: the indexer reads settings ($app/env/private) only the admin app declares
-  const indexerBuild = '@find-sign/indexer/orthagonal/build.ts'
-  const { default: buildSearchIndex }: { default: (provider: string, options: { log: () => void, progress: () => void }) => Promise<void> } = await import(/* @vite-ignore */ indexerBuild)
+  const settings = {
+    store: findSignData({ collection: DataBase, identity: writeIdentity, userAgent: 'find-sign-website' }),
+    collectionURL: DataBase,
+    encodedSearchDataURL: EncodedSearchDataBase,
+    indexName: 'index',
+    indexes: ['alpha', 'beta'],
+    lookupVector: vectorLibrary(VectorLibraryBase).lookup,
+    locale: 'en-AU',
+  }
   const quiet = { log: () => {}, progress: () => {} }
-  await buildSearchIndex('alpha', quiet)
-  await buildSearchIndex('beta', quiet)
+  await buildSearchIndex('alpha', settings, quiet)
+  await buildSearchIndex('beta', settings, quiet)
   server.resetRequests()
 }

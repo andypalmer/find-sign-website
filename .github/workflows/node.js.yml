@@ -13,6 +13,9 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/test.yml
 
   images:

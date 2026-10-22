@@ -4,6 +4,7 @@
   import Carousel from '#lib/result/Carousel.svelte'
   import RegionMap from '#lib/RegionMap.svelte'
   import Icon from '@find-sign/core/ui/Icon.svelte'
+  import TagList from '#lib/tags/TagList.svelte'
 
   export let data: EncodedSearchDataEntry
   export let expand = false
@@ -12,6 +13,8 @@
   export let key: number = 0
   export let prefer: 'performance' | 'quality' = 'performance'
   export let ssrPlayVideo = false
+  /** every tag, grouped and explained, as on the sign's own page; otherwise its warnings and first few */
+  export let allTags = false
 
   $: warnings = data ? [...getWarnings(data.tags)] : []
 
@@ -19,6 +22,8 @@
 
   const media = watchMedia({ phone: '(max-width: 600px)' })
   $: implicitExpand = expand || $media.phone
+
+  const phraseSearch = (phrase: string) => `/search?${new URLSearchParams({ query: phrase, page: '0' })}`
 
   function * getWarnings (tags: string[]) {
     if (tags.includes('invented'))
@@ -69,7 +74,7 @@
         {#if data.tags || data.author}
           <div class=tags>
             {#if data.author && data.author.id}@{data.author.id} {/if}
-            {#if data.tags}{#each data.tags as tag}#{tag} {/each}{/if}
+            {#if data.tags && !allTags}<TagList tags={data.tags} provider={data.provider} {permalink} {key}/>{/if}
           </div>
         {/if}
       </div>
@@ -86,6 +91,15 @@
     </div>
 
     <!-- kept on one line: .body preserves whitespace, so none may appear between these tags -->
+    {#if allTags && (data.tags || data.englishPhrases?.length)}
+      <div class=all-tags>
+        {#if data.englishPhrases?.length}
+          <p class=english>In English: {#each data.englishPhrases as phrase, index}{#if index > 0}{', '}{/if}<a href={phraseSearch(phrase)} rel=nofollow>{phrase}</a>{/each}</p>
+        {/if}
+        {#if data.tags}<TagList tags={data.tags} provider={data.provider} {key} full/>{/if}
+      </div>
+    {/if}
+
     <div class=body>{#if warnings.length > 0}<div class=alerts>{#each warnings as warning}<div class="alert {warning.type}"><Icon name={warning.icon || 'alert'}/> {warning.text}</div>{/each}</div>{/if}{data.body || ''}</div>
   {/if}
 </div>
@@ -164,6 +178,9 @@
   .tags { grid-area: hashtags; }
   .alerts { grid-area: alerts; }
   .body { grid-area: body; }
+  .all-tags { grid-area: alltags; margin: 0.6em 0; font-size: 90%; }
+  .all-tags .english { margin: 0 0 0.6em; }
+  .all-tags .english a { color: inherit; }
 
   .result:not(.expand) {
     display: grid;
@@ -178,12 +195,13 @@
   .result.expand {
     display: grid;
     grid-template-columns: auto;
-    grid-template-rows: auto 1ex auto auto;
+    grid-template-rows: auto 1ex auto auto auto;
     grid-template-areas:
       "media"
       "gap"
       "heading"
-      "body";
+      "body"
+      "alltags";
   }
 
   .result :global(.carousel) {

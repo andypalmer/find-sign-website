@@ -65,10 +65,11 @@ describe('getUpdatesFeed()', () => {
     expect(page2.next_url).toBeNull()
   })
 
-  it('loads the timestamp column of every index, then one shard per item', async () => {
+  it('loads the date columns of every index, then one shard per item', async () => {
     await getUpdatesFeed({ url, length: 1 })
     expect(server.requests.map(r => r.path.split('/').slice(-2).join('/')).sort()).toEqual([
-      'alpha/meta.json', 'alpha/timestamp.json', 'beta/meta.json', 'beta/shard-0.json', 'beta/timestamp.json',
+      'alpha/meta.json', 'alpha/sourceCreated.json', 'alpha/sourceUpdated.json', 'alpha/timestamp.json',
+      'beta/meta.json', 'beta/shard-0.json', 'beta/sourceCreated.json', 'beta/sourceUpdated.json', 'beta/timestamp.json',
     ])
   })
 })
@@ -89,15 +90,17 @@ describe('homepage load', () => {
     const { feed, automated } = await load({ url: new URL('http://site.test/'), setHeaders: () => {} })
     expect(automated).toBe(false)
     expect(feed.map((x: any) => `${x.verb}:${x.title}`)).toEqual([
-      'documented:dog', 'documented:car', 'blogged:post-a', 'documented:cat', 'shared:Kitten', 'blogged:post-b',
+      // the signs were all indexed within a day, so they share the date of the last one added. car is lexis.crude,
+      // so it's left out
+      'blogged:post-a', 'documented:dog', 'documented:cat', 'shared:Kitten', 'blogged:post-b',
     ])
     expect(feed.find((x: any) => x.verb === 'blogged')).toEqual({
       author: { name: 'Find Sign' }, verb: 'blogged', title: 'post-a',
       date: new Date(2000).toISOString(), remoteURL: 'https://news.test/post-a',
     })
-    expect(feed[0]).toEqual({
+    expect(feed[1]).toEqual({
       author: { name: 'Alpha Dictionary', url: 'https://alpha.test/' }, verb: 'documented', title: 'dog',
-      date: new Date(1000).toISOString(), cacheURL: 'http://site.test/sign/alpha/dog', remoteURL: 'https://alpha.test/dog',
+      date: new Date(4000).toISOString(), cacheURL: 'http://site.test/sign/alpha/dog', remoteURL: 'https://alpha.test/dog',
     })
   })
 
@@ -111,7 +114,7 @@ describe('homepage load', () => {
     try {
       const load = await freshHomepageLoad()
       const { feed } = await load({ url: new URL('http://site.test/'), setHeaders: () => {} })
-      expect(feed).toHaveLength(4)
+      expect(feed).toHaveLength(3)
       expect(feed.every((x: any) => x.verb !== 'blogged')).toBe(true)
       expect((console.error as any).mock.calls.length > 0).toBe(logged)
     } finally {
@@ -135,7 +138,7 @@ describe('homepage load', () => {
 
 describe('getRandomSigns()', () => {
   it('never picks entries carrying a blocked tag', async () => {
-    expect(blockedTags).toEqual(['signpedia', 'invented', 'lexis.crude', 'semantic.sexuality', 'lexis.fingerspell'])
+    expect(blockedTags).toEqual(['signpedia', 'invented', 'lexis.crude', 'register.explicit', 'register.suggestive', 'lexis.fingerspell'])
     // pool after blocking car (lexis.crude) and kitten (invented): cat, dog, red-truck
     const picks = []
     for (const r of [0, 0.4, 0.99]) {

@@ -61,7 +61,7 @@
 <Header />
 
 <div>
-  <Result key={0} data={result} expand prefer="quality" />
+  <Result key={0} data={result} expand allTags prefer="quality" />
 </div>
 
 <style>

@@ -1,10 +1,10 @@
 import { getSearchLibrary, indexByURL } from '@find-sign/core/search/search.ts'
+import { naughtyTags } from '@find-sign/core/search/naughty.ts'
 
 export const blockedTags = [
   'signpedia', // block signpedia-like entries, not established signs
   'invented', // block toddslan-like entries
-  'lexis.crude', // block rude signbank stuff, want relatively unshocking kid friendly results
-  'semantic.sexuality', // block formal register sexual body parts type of words
+  ...naughtyTags, // want relatively unshocking kid friendly results
   'lexis.fingerspell' // fingerspelling entries are too boring
 ]
 

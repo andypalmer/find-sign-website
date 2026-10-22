@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "@find-sign/core": "*",
-    "@find-sign/indexer": "*",
-    "tweetnacl-ts": "^1.0.3"
+    "tweetnacl-ts": "^1.0.3",
+    "@andypalmer/indexer": "^0.1.0",
+    "@andypalmer/data-store": "^0.1.0",
+    "@andypalmer/vectors": "^0.1.0"
   }
 }

@@ -1,6 +1,6 @@
 import { writeAuditLog } from '#lib/models/audit-log.ts'
 import { decodeFilename, fn } from '@find-sign/core/models/filename-codec.ts'
-import { getOverrideFor, setOverrideFor, deleteOverrideFor } from '@find-sign/indexer/models/index-override.ts'
+import { getOverrideFor, setOverrideFor, deleteOverrideFor } from '#lib/models/index-override.ts'
 import { userHasPower } from '#lib/models/user.ts'
 import { loginRedirect } from '#lib/passkey/site-auth.ts'
 import { availableIndexes } from '@find-sign/core/search/search.ts'

@@ -14,7 +14,6 @@
     "check": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@find-sign/core": "*",
-    "tweetnacl-ts": "^1.0.3"
+    "@andypalmer/data-store": "^0.1.0"
   }
 }

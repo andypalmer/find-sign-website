@@ -26,13 +26,13 @@
   "dependencies": {
     "@find-sign/core": "*",
     "@find-sign/data-io": "*",
-    "@find-sign/indexer": "*",
     "@borderless/base64": "^1.0.1",
     "@simplewebauthn/browser": "^14.0.0",
     "@simplewebauthn/server": "^14.0.3",
     "nanoid": "^6.0.2",
     "svelte-tags-input": "^7.0.3",
-    "tweetnacl-ts": "^1.0.3"
+    "tweetnacl-ts": "^1.0.3",
+    "@andypalmer/indexer": "^0.1.0"
   },
   "imports": {
     "#lib/*": "./src/lib/*"
