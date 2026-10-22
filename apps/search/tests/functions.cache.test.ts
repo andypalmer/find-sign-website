@@ -49,4 +49,33 @@ describe('/src/lib/functions/cache.ts', () => {
     const end = Date.now()
     expect(end - start).to.be.lessThan(5)
   })
+
+  it('immediateResponseCache fails only the requests a failed load answers, and tries again', async () => {
+    const unhandled: unknown[] = []
+    const listener = (reason: unknown) => unhandled.push(reason)
+    process.on('unhandledRejection', listener)
+    try {
+      let fail = true
+      const c = immediateResponseCache(async () => {
+        await delay(5)
+        if (fail) throw new Error('data server answered with html')
+        return 'feed'
+      })
+      await expect(c()).rejects.toThrow('html')
+      // the first load failed: the next request gets that failure, as it loads again
+      fail = false
+      await expect(c()).rejects.toThrow('html')
+      await delay(15)
+      expect(await c()).to.equal('feed')
+      // a failed update, which nothing has asked for yet
+      fail = true
+      c()
+      await delay(15)
+      await expect(c()).rejects.toThrow('html')
+      await delay(15)
+      expect(unhandled).toEqual([])
+    } finally {
+      process.off('unhandledRejection', listener)
+    }
+  })
 })

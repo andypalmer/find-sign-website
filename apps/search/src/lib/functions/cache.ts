@@ -34,11 +34,14 @@ export function immediateResponseCache<Ret, Args extends any[]> (loadNewValue: (
         }).catch(err => {
           updating = false
           nextPromise = Promise.reject(err)
+          // only the requests that get it handle it: until then, it mustn't count as unhandled, which stops node
+          nextPromise.catch(() => {})
         })
       } else {
         initialized = true
         nextPromise = next
-        nextPromise.finally(() => updating = false)
+        // both ways, so a failed first load only fails its request, and isn't an unhandled rejection too
+        next.then(() => updating = false, () => updating = false)
       }
     }
 
