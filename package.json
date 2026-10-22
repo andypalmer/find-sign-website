@@ -1,6 +1,6 @@
 {
   "name": "find-sign",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Find Sign: Auslan aggregator and semantic search, as npm workspaces",
   "type": "module",
