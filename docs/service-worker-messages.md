@@ -54,7 +54,7 @@ type Letter = {
 
 // everything that comes back on that channel
 type Reply =
-  | { protocol: 1, kind: 'progress', done: number, doing: string }  // zero or more, only if wanted
+  | { protocol: 1, kind: 'progress', done: number, doing: string }  // zero or more; the page may ignore them
   | { protocol: 1, kind: 'answer', details: unknown }               // exactly one, ends the exchange
   | { protocol: 1, kind: 'failed', reason: FailureReason, words: string } // exactly one, ends the exchange
 ```
@@ -68,7 +68,7 @@ never for code to read.
 
 | reason | meaning | what the page does |
 |---|---|---|
-| `no-such-actor` / `no-such-question` | the letter names a desk or question the worker doesn't have | use the fallback for this question, and ask the worker to update |
+| `no-such-actor` / `no-such-question` | the letter names a desk or question the worker doesn't have, or is written in a protocol version the worker doesn't know | use the fallback for this question, and ask the worker to update |
 | `bad-details` | the fields were the wrong shape | a bug: log it, use the fallback |
 | `cancelled` | the page said never-mind | nothing |
 | `no-network-and-not-kept` | the worker needed a file it hasn't kept and can't fetch it | show the same "offline" notice the site shows today |
@@ -136,7 +136,7 @@ use will be the worker adding the region to a query itself. We shouldn't build t
 
 ```
 page   ── Letter { to: 'search-desk', ask: 'search', details: { query: 'hello', start: 0, length: 10 } } ──▶ worker
-worker ── Reply  { kind: 'progress', done: 0.2, doing: 'getting the word list' } ──▶ page   (only if the page wanted progress)
+worker ── Reply  { kind: 'progress', done: 0.2, doing: 'getting the word list' } ──▶ page
 worker ── Reply  { kind: 'answer', details: { totalResults: 87, results: [ … ] } } ──▶ page
 ```
 
