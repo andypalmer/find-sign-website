@@ -19,5 +19,8 @@
     "@andypalmer/indexer": "^0.1.0",
     "@andypalmer/data-store": "^0.1.0",
     "@andypalmer/vectors": "^0.1.0"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.8"
   }
 }
