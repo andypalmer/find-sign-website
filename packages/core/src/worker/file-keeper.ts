@@ -130,7 +130,7 @@ export class FileKeeper implements IHandOverIndexFiles {
    * (A file fetched at the very moment of a tidy is safe: the grace period is days, not moments.)
    */
   private async tidyAgainst ({ manifestBytes, top, indexes }: CurrentManifests): Promise<string[]> {
-    const current = new Set<string>(Object.values(top.indexes))
+    const current = new Set<string>([...Object.values(top.indexes), ...this.reader.sharedFileNamesIn(top)])
     for (const index of Object.values(indexes)) for (const name of this.reader.fileNamesIn(index)) current.add(name)
 
     const noticedAt = await this.readNotices()

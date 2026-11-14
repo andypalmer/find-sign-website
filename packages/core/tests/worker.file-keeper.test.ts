@@ -250,14 +250,14 @@ describe('the file keeper, asked for the manifest', () => {
 
 describe('the file keeper, following the manifest to the indexes', () => {
   const manifestUrl = `${base}/manifest.json`
-  const alphaOne = { shardCount: 1, shards: ['shard-0.aaaaaaaaaa.json'], scans: ['scan-0.bbbbbbbbbb.json'], vectors: ['vectors-0.cccccccccc.lps'] }
-  const betaOne = { shardCount: 1, shards: ['shard-0.dddddddddd.json'], scans: ['scan-0.eeeeeeeeee.json'], vectors: [] as string[] }
+  const alphaOne = { shardCount: 1, shards: ['shard-0.aaaaaaaaaa.json'], scans: ['scan-0.bbbbbbbbbb.json'] }
+  const betaOne = { shardCount: 1, shards: ['shard-0.dddddddddd.json'], scans: ['scan-0.eeeeeeeeee.json'] }
   const alphaTwo = { ...alphaOne, shards: ['shard-0.ffffffffff.json'] }
 
   /** publish a build the way the pipeline will: the index manifests first, the top manifest last */
   function publish (server: FakeDataServer, indexes: Record<string, { name: string, contents: object }>) {
     for (const { name, contents } of Object.values(indexes)) server.set(`${base}/${name}`, contents)
-    server.set(manifestUrl, { version: 2, indexes: Object.fromEntries(Object.entries(indexes).map(([index, { name }]) => [index, name])) })
+    server.set(manifestUrl, { version: 2, indexes: Object.fromEntries(Object.entries(indexes).map(([index, { name }]) => [index, name])), vectors: [] })
   }
   const names = (server: FakeDataServer) => server.requests.map(r => r.path.split('/').pop())
 
@@ -317,16 +317,16 @@ describe('the file keeper, following the manifest to the indexes', () => {
 
 describe('the file keeper, tidying up files that are out of date', () => {
   const manifestUrl = `${base}/manifest.json`
-  const indexOne = { shardCount: 1, shards: ['shard-0.aaaaaaaaaa.json'], scans: ['scan-0.bbbbbbbbbb.json'], vectors: [] as string[] }
+  const indexOne = { shardCount: 1, shards: ['shard-0.aaaaaaaaaa.json'], scans: ['scan-0.bbbbbbbbbb.json'] }
   const indexTwo = { ...indexOne, shards: ['shard-0.cccccccccc.json'] }
   const oldShard = 'shard-0.aaaaaaaaaa.json'
   const sharedScan = 'scan-0.bbbbbbbbbb.json'
 
-  function publish (server: FakeDataServer, indexName: string, contents: typeof indexOne) {
+  function publish (server: FakeDataServer, indexName: string, contents: typeof indexOne, vectors: string[] = []) {
     const name = `index-${indexName}.${contents.shards[0].slice(8, 18)}.json`
     server.set(`${base}/${name}`, contents)
-    for (const file of [...contents.shards, ...contents.scans]) server.set(`${base}/${file}`, `bytes of ${file}`)
-    server.set(manifestUrl, { version: 2, indexes: { [indexName]: name } })
+    for (const file of [...contents.shards, ...contents.scans, ...vectors]) server.set(`${base}/${file}`, `bytes of ${file}`)
+    server.set(manifestUrl, { version: 2, indexes: { [indexName]: name }, vectors })
   }
 
   /** a keeper that has fetched the old shard, then the build moves on to indexTwo, which no longer uses it */
@@ -393,6 +393,47 @@ describe('the file keeper, tidying up files that are out of date', () => {
     expect(await stillKept(keeper, timesFetched)).toBe(true)
   })
 
+  describe('with word vector files that every index shares', () => {
+    const vectorFile = 'vectors-0.dddddddddd.lps'
+
+    /** a keeper that has fetched a shared vector file named by manifest.json, with the build one step on */
+    async function keeperHoldingASharedVectorFile () {
+      const { server, clock, shelf, keeper, keeperFor } = await keeperAfterTheBuildMovesOn()
+      publish(server, 'alpha', indexTwo, [vectorFile])
+      await keeper.currentIndexes()
+      await keeper.fileNamed(vectorFile)
+      return { server, clock, shelf, keeper, keeperFor }
+    }
+
+    it('never drops a vector file that manifest.json names, though no index manifest does, however long ago it was fetched', async () => {
+      const { keeper, clock, shelf } = await keeperHoldingASharedVectorFile()
+      await keeper.tidy()
+      clock.passDays(400)
+
+      expect(await keeper.tidy()).not.toContain(vectorFile)
+      expect(await shelf.names()).toContain(vectorFile)
+    })
+
+    it('drops it once manifest.json stops naming it and the grace period has passed', async () => {
+      const { keeper, clock, server, shelf } = await keeperHoldingASharedVectorFile()
+      publish(server, 'alpha', indexTwo) // the next build names no vector file
+      await keeper.tidy()
+      clock.passDays(31)
+
+      expect(await keeper.tidy()).toContain(vectorFile)
+      expect(await shelf.names()).not.toContain(vectorFile)
+    })
+
+    it('keeps it across a restart of the worker too', async () => {
+      const { keeperFor, clock, shelf } = await keeperHoldingASharedVectorFile()
+      await keeperFor().tidy()
+      clock.passDays(400)
+
+      expect(await keeperFor().tidy()).not.toContain(vectorFile)
+      expect(await shelf.names()).toContain(vectorFile)
+    })
+  })
+
   it('starts the count again if a file becomes current and then goes out of date a second time', async () => {
     const { keeper, clock, server, timesFetched } = await keeperAfterTheBuildMovesOn()
     await keeper.tidy()
@@ -439,7 +480,7 @@ describe('the file keeper, tidying up files that are out of date', () => {
 
 describe('the file keeper, tidying by itself as searches go through it', () => {
   const manifestUrl = `${base}/manifest.json`
-  const indexOne = { shardCount: 1, shards: ['shard-0.aaaaaaaaaa.json'], scans: ['scan-0.bbbbbbbbbb.json'], vectors: [] as string[] }
+  const indexOne = { shardCount: 1, shards: ['shard-0.aaaaaaaaaa.json'], scans: ['scan-0.bbbbbbbbbb.json'] }
   const indexTwo = { ...indexOne, shards: ['shard-0.cccccccccc.json'] }
   const oldShard = 'shard-0.aaaaaaaaaa.json'
 
@@ -447,7 +488,7 @@ describe('the file keeper, tidying by itself as searches go through it', () => {
     const name = `index-alpha.${contents.shards[0].slice(8, 18)}.json`
     server.set(`${base}/${name}`, contents)
     for (const file of [...contents.shards, ...contents.scans]) server.set(`${base}/${file}`, `bytes of ${file}`)
-    server.set(manifestUrl, { version: 2, indexes: { alpha: name } })
+    server.set(manifestUrl, { version: 2, indexes: { alpha: name }, vectors: [] })
   }
 
   /** a keeper that has seen build one and fetched its shard; the data server then moves on to build two */

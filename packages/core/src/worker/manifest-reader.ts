@@ -4,11 +4,11 @@
 /** the format version this reader understands */
 export const knownFormatVersion = 2
 
-/** the top manifest: for each index, the name of that index's own manifest */
-export type TopManifest = { version: number, indexes: Record<string, string> }
+/** the top manifest: for each index, the name of that index's own manifest, and the word vector files every index shares */
+export type TopManifest = { version: number, indexes: Record<string, string>, vectors: string[] }
 
-/** one index's manifest: every file that index is made of */
-export type IndexManifest = { shardCount: number, shards: string[], scans: string[], vectors: string[] }
+/** one index's manifest: every file that index is made of (the word vectors are shared, so the top manifest has them) */
+export type IndexManifest = { shardCount: number, shards: string[], scans: string[] }
 
 /** a manifest we can't use, with the reason in plain words */
 export class ManifestUnreadable extends Error {
@@ -24,6 +24,8 @@ export interface IReadManifests {
   readIndex (bytes: Uint8Array): IndexManifest
   /** every file name an index manifest mentions, whatever kind of file it is */
   fileNamesIn (index: IndexManifest): string[]
+  /** every file name the top manifest mentions besides the index manifests: the shared word vectors */
+  sharedFileNamesIn (top: TopManifest): string[]
 }
 
 function readJsonObject (bytes: Uint8Array, what: string): Record<string, unknown> {
@@ -64,7 +66,8 @@ export class ManifestReader implements IReadManifests {
     if (typeof indexes !== 'object' || indexes === null || Array.isArray(indexes)) throw new ManifestUnreadable('the top manifest has no list of indexes')
     return {
       version: top.version,
-      indexes: Object.fromEntries(Object.entries(indexes).map(([name, manifestName]) => [name, plainFileName(manifestName, `index "${name}"`)]))
+      indexes: Object.fromEntries(Object.entries(indexes).map(([name, manifestName]) => [name, plainFileName(manifestName, `index "${name}"`)])),
+      vectors: listOfNames(top.vectors, 'the vector list')
     }
   }
 
@@ -74,12 +77,15 @@ export class ManifestReader implements IReadManifests {
     return {
       shardCount: index.shardCount as number,
       shards: listOfNames(index.shards, 'the shard list'),
-      scans: listOfNames(index.scans, 'the scan list'),
-      vectors: listOfNames(index.vectors, 'the vector list')
+      scans: listOfNames(index.scans, 'the scan list')
     }
   }
 
   fileNamesIn (index: IndexManifest): string[] {
-    return [...new Set([...index.shards, ...index.scans, ...index.vectors])]
+    return [...new Set([...index.shards, ...index.scans])]
+  }
+
+  sharedFileNamesIn (top: TopManifest): string[] {
+    return [...new Set(top.vectors)]
   }
 }
