@@ -26,7 +26,7 @@ export interface IServiceWorkerContainerLike {
 }
 
 export type RegisterOptions = {
-  /** 'module' for the dev server, which serves the worker as a module; the built site's is a classic script */
+  /** 'module' for a worker that has import statements, which is how sveltekit 3 builds ours */
   type?: 'classic' | 'module',
   /** how long to wait for the worker to be ready; a first visit has it to install */
   timeoutMs?: number,

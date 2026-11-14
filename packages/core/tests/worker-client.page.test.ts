@@ -188,7 +188,7 @@ describe('the page\'s search, with the service worker switched on', () => {
     expect(container!.registered).toHaveLength(1)
   })
 
-  it('passes the module type on when asked, as the dev server needs', async () => {
+  it('passes the module type on when asked, as a worker with imports needs', async () => {
     const { search, container } = pageSearchWith({ type: 'module' })
     await search.search('cat', 0, 10)
     expect(container!.registered[0].options).toEqual({ type: 'module' })
