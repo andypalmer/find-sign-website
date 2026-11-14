@@ -3,7 +3,7 @@
 // and to clear the shelf.)
 
 /** asks the network for a file; the real worker passes `fetch` */
-export type FetchAFile = (url: string, init?: { cache?: RequestCache }) => Promise<Response>
+export type FetchAFile = (url: string, init?: { cache?: RequestCache, headers?: Record<string, string> }) => Promise<Response>
 
 /** a shelf that remembers files by name; the real one is backed by browser storage, tests use a fake */
 export interface IRememberFilesByName {
@@ -15,7 +15,14 @@ export interface IRememberFilesByName {
 /** something that can be asked for an index file by its name */
 export interface IHandOverIndexFiles {
   fileNamed (name: string): Promise<Uint8Array>
+  /** the newest manifest.json; costs one small question to the server, and usually no download */
+  manifest (): Promise<Uint8Array>
 }
+
+const manifestName = 'manifest.json'
+/** the shelf also holds the server's tag for the manifest we have, so a restarted worker can still ask "is this still the newest?" */
+const manifestTagName = 'manifest.json.tag'
+const decode = (bytes: Uint8Array | undefined) => bytes ? new TextDecoder().decode(bytes) : ''
 
 export class FileKeeper implements IHandOverIndexFiles {
   /** files being fetched right now; anyone else who wants one joins the same fetch */
@@ -36,6 +43,28 @@ export class FileKeeper implements IHandOverIndexFiles {
     return fetching
   }
 
+  /**
+   * The manifest is the one file that changes, so it is never served without asking the server. We say
+   * which version we hold; the server either says "still the newest" (nothing to download) or sends the new one.
+   * (Don't ask fileNamed for it: that would hand out the kept copy for ever.)
+   */
+  async manifest (): Promise<Uint8Array> {
+    const kept = await this.shelf.recall(manifestName)
+    const keptTag = decode(await this.shelf.recall(manifestTagName))
+    const response = await this.fetchFile(`${this.baseUrl}/${manifestName}`, {
+      cache: 'no-cache',
+      headers: kept && keptTag ? { 'If-None-Match': keptTag } : undefined
+    })
+    if (response.status === 304 && kept) return kept
+    if (!response.ok) throw new Error(`could not fetch ${manifestName}: status ${response.status}`)
+
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    await this.shelf.remember(manifestName, bytes)
+    // no tag sent means nothing to check against next time; write an empty one so an old tag is not left behind
+    await this.shelf.remember(manifestTagName, new TextEncoder().encode(response.headers.get('etag') ?? ''))
+    return bytes
+  }
+
   private async keptOrFetched (name: string): Promise<Uint8Array> {
     const kept = await this.shelf.recall(name)
     if (kept) return kept
@@ -44,8 +73,7 @@ export class FileKeeper implements IHandOverIndexFiles {
     if (response.status === 404) {
       // The build may have moved on and the server tidied this file away. Look at the manifest afresh (the
       // manifest is the one file that can change, so never trust a copy of it), then try once more.
-      // For now the manifest's contents are not used; a later round has the keeper act on them.
-      await this.fetchFile(`${this.baseUrl}/manifest.json`, { cache: 'no-cache' })
+      await this.manifest()
       response = await this.fetchFile(`${this.baseUrl}/${name}`)
     }
     if (!response.ok) throw new Error(`could not fetch ${name}: status ${response.status}`)

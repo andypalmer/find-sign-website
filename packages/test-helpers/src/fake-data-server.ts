@@ -2,6 +2,7 @@
 // It is installed as globalThis.fetch, records every request, and implements just enough of the
 // find-sign-data protocol used by @find-sign/data-io: GET/HEAD files, GET directory listings
 // (JSON or text/plain), PUT, DELETE, and POST {type:'bulk'} / {type:'math'}.
+import { createHash } from 'node:crypto'
 import { vi } from 'vitest'
 
 export type RecordedRequest = {
@@ -14,6 +15,11 @@ export type RecordedRequest = {
 }
 
 const encoder = new TextEncoder()
+
+/** the tag a web server would give a file: it changes whenever the file's bytes change */
+function tagFor (file: Uint8Array): string {
+  return `"${createHash('sha1').update(file).digest('hex').slice(0, 16)}"`
+}
 
 function toBytes (data: string | Uint8Array | object): Uint8Array {
   if (data instanceof Uint8Array) return data
@@ -98,7 +104,12 @@ export class FakeDataServer {
 
     if (method === 'GET' || method === 'HEAD') {
       const file = this.files.get(path)
-      if (file) return new Response(method === 'HEAD' ? null : file as BodyInit, { status: 200 })
+      if (file) {
+        const etag = tagFor(file)
+        // like nginx: if the asker already holds exactly this version, say so instead of sending it again
+        if (headers['if-none-match'] === etag) return new Response(null, { status: 304, headers: { etag } })
+        return new Response(method === 'HEAD' ? null : file as BodyInit, { status: 200, headers: { etag } })
+      }
       const names = this.listing(path)
       if (names.length > 0) {
         if (headers['accept'] === 'text/plain') return new Response(names.join('\n'), { status: 200 })

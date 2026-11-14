@@ -10,7 +10,7 @@ function keeperWith (files: Record<string, string>) {
   const server = new FakeDataServer()
   for (const [name, contents] of Object.entries(files)) server.set(`${base}/${name}`, contents)
   const shelf = new FakeShelf()
-  const keeper = new FileKeeper(url => server.fetch(url), shelf, base)
+  const keeper = new FileKeeper((url, init) => server.fetch(url, init), shelf, base)
   return { server, shelf, keeper }
 }
 
@@ -108,5 +108,79 @@ describe('the file keeper, asked for a file the server no longer has', () => {
     await expect(keeper.fileNamed('shard-7.1111111111.json')).rejects.toThrow()
     await expect(keeper.fileNamed('shard-8.2222222222.json')).rejects.toThrow()
     expect(server.requests.filter(r => r.path.endsWith('manifest.json'))).toEqual([])
+  })
+})
+
+describe('the file keeper, asked for the manifest', () => {
+  const manifestUrl = `${base}/manifest.json`
+  const ifNoneMatch = (request: { headers: Record<string, string> }) => request.headers['if-none-match']
+
+  it('fetches it the first time, asking the network to check even if it has a copy, and without any "already have" tag', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"build":1}' })
+
+    expect(text(await keeper.manifest())).toBe('{"build":1}')
+    expect(server.requests).toHaveLength(1)
+    expect(server.requests[0].cache).toBe('no-cache')
+    expect(ifNoneMatch(server.requests[0])).toBeUndefined()
+  })
+
+  it('says which version it holds when it checks again, and keeps its copy when the server says nothing changed', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"build":1}' })
+    await keeper.manifest()
+
+    expect(text(await keeper.manifest())).toBe('{"build":1}')
+    expect(ifNoneMatch(server.requests[1])).toBeTruthy()
+  })
+
+  it('takes the new manifest when the server has one, and from then on checks against that one', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"build":1}' })
+    await keeper.manifest()
+    server.set(manifestUrl, '{"build":2}')
+
+    expect(text(await keeper.manifest())).toBe('{"build":2}')
+    expect(text(await keeper.manifest())).toBe('{"build":2}')
+    expect(ifNoneMatch(server.requests[2])).not.toBe(ifNoneMatch(server.requests[1]))
+    expect(ifNoneMatch(server.requests[2])).toBeTruthy()
+  })
+
+  it('still knows which version it holds after the worker has been stopped and started again', async () => {
+    const { keeper, server, shelf } = keeperWith({ 'manifest.json': '{"build":1}' })
+    await keeper.manifest()
+    const afterRestart = new FileKeeper((url, init) => server.fetch(url, init), shelf, base)
+
+    expect(text(await afterRestart.manifest())).toBe('{"build":1}')
+    expect(ifNoneMatch(server.requests[1])).toBeTruthy()
+  })
+
+  it('does not hold on to an old tag when the server stops sending tags', async () => {
+    const { server, shelf } = keeperWith({ 'manifest.json': '{"build":1}' })
+    let tags = true
+    const keeper = new FileKeeper(async (url, init) => {
+      const response = await server.fetch(url, init)
+      if (tags) return response
+      return new Response(await response.arrayBuffer(), { status: response.status })
+    }, shelf, base)
+    await keeper.manifest()
+    tags = false
+    server.set(manifestUrl, '{"build":2}')
+    await keeper.manifest()
+    server.set(manifestUrl, '{"build":3}')
+
+    expect(text(await keeper.manifest())).toBe('{"build":3}')
+    expect(ifNoneMatch(server.requests[2])).toBeFalsy()
+  })
+
+  it('keeps the newer manifest it found while looking for a missing file', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"build":1}' })
+    await keeper.manifest()
+    server.set(manifestUrl, '{"build":2}')
+    await expect(keeper.fileNamed('shard-9.9999999999.json')).rejects.toThrow()
+    const refresh = server.requests.find(r => r.path.endsWith('manifest.json') && r !== server.requests[0])!
+    const requestsSoFar = server.requests.length
+
+    expect(text(await keeper.manifest())).toBe('{"build":2}')
+    // the refresh took the new copy, so this check carries the new version's tag, not the old one
+    expect(ifNoneMatch(server.requests[requestsSoFar])).toBeTruthy()
+    expect(ifNoneMatch(server.requests[requestsSoFar])).not.toBe(ifNoneMatch(refresh))
   })
 })
