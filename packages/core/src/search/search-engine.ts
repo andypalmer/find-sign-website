@@ -32,7 +32,9 @@ export type SearchSeams = {
   knownVectors (): Promise<{ [word: string]: WordVector } | undefined>,
   /** a word's vector from the whole word vector library, for words the signs don't use */
   lookupVector (word: string): Promise<WordVector | undefined>,
-  /** every index, with these columns loaded, and the known vectors if there are any. `forceReload` skips caches */
+  /** every index, with these columns loaded, and the known vectors if there are any. `forceReload` skips caches.
+   * The indexes must be in the order we trust them: signs that rank equally go in that order (the order of the
+   * SEARCH_INDEXES setting) */
   loadLibrary (columns: string[], knownVectors: { [word: string]: WordVector } | undefined, forceReload: boolean): Promise<SearchLibrary>,
   /** the name of the index a result came from */
   indexNameOf (entry: LoadedOrthagonalEntry): string,

@@ -66,6 +66,12 @@ describe('answerSearch()', () => {
     expect(ids(response)).toEqual(['alpha:ant', 'alpha:moth', 'alpha:zebra'])
   })
 
+  it('puts equal-ranked signs from different indexes in the order the library lists its indexes, whatever their ids', async () => {
+    const same = [vector(1, 0, 0, 0)]
+    const response = await answerSearch('cat', 0, 10, seamsFor(libraryOf(sign({ id: 'zebra', vectors: same, index: 'beta' }), sign({ id: 'ant', vectors: same, index: 'alpha' }))))
+    expect(ids(response)).toEqual(['beta:zebra', 'alpha:ant'])
+  })
+
   it('asks for the collection\'s known vectors only when the query has words in it', async () => {
     const seams = seamsFor(animals())
     await answerSearch('#animal', 0, 10, seams)

@@ -14,8 +14,14 @@ export type RankedLibrary = {
   entries: LoadedOrthagonalEntry[]
 }
 
+/**
+ * Ranks every sign in the library that matches, best first. Signs that rank equally go in the order the library
+ * lists its indexes in (the first index listed is the one we trust most), then in id order within an index, so the
+ * order never depends on how a build happened to list the signs. The library is in the order of the SEARCH_INDEXES
+ * setting, so that setting is the ranking of the indexes.
+ */
 export default function rank (library: SearchLibrary, filterFn: RankingFilterFunction): RankedLibrary {
-  const entries = Object.values(library).flatMap(index => {
+  const entries = Object.values(library).flatMap((index, place) => {
     return index.entries.flatMap(entry => {
       const rank = filterFn(entry)
       if (typeof rank === 'number' && rank < Infinity) {
@@ -27,15 +33,14 @@ export default function rank (library: SearchLibrary, filterFn: RankingFilterFun
           rankedEntry.rank = rank
         }
         if (isNaughty(entry)) rankedEntry.rank += naughtyPenalty
+        rankedEntry.place = place
         return [rankedEntry]
       } else {
         return []
       }
     })
   }).sort((x, y) => {
-    // signs that rank equally go in id order (then index address, for the same id in two indexes), so the
-    // order never depends on how the build happened to list them
-    return (x.rank - y.rank) || compareText(x.id ?? '', y.id ?? '') || compareText(x.indexURL, y.indexURL)
+    return (x.rank - y.rank) || (x.place - y.place) || compareText(x.id ?? '', y.id ?? '')
   })
 
   return { entries }

@@ -81,16 +81,24 @@ doubles it when the average shard holds more than twice its target. See "Changin
 `.json` or `.lps`). `manifest.json` is sent with `no-cache`, so it is checked every time. Cloudflare can cache the
 immutable files for good, so almost no request reaches the origin.
 
-**Ties are broken by id.** Results that rank equally used to come out in the order the build listed the
-signs. That order no longer means anything, so the ranking breaks ties by id on purpose (then by the index's
-address, for the same id in two indexes). We measured what that changes, on the real index with its real word
-vectors, over 380 searches: single words, two words, whole titles, tags alone, and tags with a word. For the
-360 that found anything, the tie-break changed the first ten results of 131 (36%) and the first fifty of 214
-(59%). In 124 (34%) a tie straddled the end of the first page, so which signs appear on page one can change,
-not only their order. Nothing is lost or added: signs that tie swap places, and in the examples we looked at they
-were mostly the same word from two providers. One catch: the ranking needs each sign's id, and today's
-search only loads the columns the query needs, which don't include `id`, so until the site reads version 2
-(whose scan files carry the id for every sign) ties fall back to the order of the index addresses.
+**Ties are broken by the order of the indexes, then by id.** Results that rank equally used to come out in
+the order the build listed the signs. That order no longer means anything, so the ranking breaks ties on
+purpose: first by where the sign's index comes in the list of indexes (the `SEARCH_INDEXES` setting, so the
+index listed first is the one we trust most), then by id within an index. We measured what that changes, on
+the real index with its real word vectors, over 380 searches: single words, two words, whole titles, tags
+alone, and tags with a word. For the 360 that found anything:
+
+| | first ten results changed | first fifty changed |
+| --- | --- | --- |
+| today's site (it doesn't load each sign's id) | 0 | 0 |
+| version 2, which has each sign's id | 64 (18%) | 134 (37%) |
+
+Today's site is unchanged because ties between indexes keep the order the indexes are listed in, which is what
+the old order gave, and the id only matters within one index. Once the site reads version 2 (whose scan files
+carry the id for every sign), tied signs from the same index come out in id order and not in the order the build
+happened to list them. Nothing is lost or added: signs that tie swap places. (We first tried id alone, with the
+index address as a last resort. That changed 36% and 59% of the searches, mostly by interleaving the same word
+from two providers, so we ranked the indexes instead.)
 
 **A renamed sign moves.** Its id changes, so its shard does too: two shards change, and the old id is kept as an
 alias. A visitor who opens the old address finds the new id in the scan files' aliases, then the new shard.

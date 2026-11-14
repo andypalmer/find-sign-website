@@ -17,12 +17,21 @@ describe('rank()', () => {
     expect(idsOf(backwards)).toEqual(idsOf(forwards))
   })
 
-  it('puts equal-ranked signs from different indexes in id order too', () => {
+  it('puts equal-ranked signs from different indexes in the order the indexes are listed in, then by id within each', () => {
     const ranked = rank(library({
       alpha: [sign('dog'), sign('ant')],
       beta: [sign('cat', 1, 'https://data.test/beta'), sign('bee', 1, 'https://data.test/beta')]
     }), byScore)
-    expect(idsOf(ranked)).toEqual(['ant', 'bee', 'cat', 'dog'])
+    // beta's "bee" has the earlier id than alpha's "dog", but alpha is listed first
+    expect(idsOf(ranked)).toEqual(['ant', 'dog', 'bee', 'cat'])
+  })
+
+  it('follows the order the indexes are listed in, so listing beta first puts its signs first', () => {
+    const ranked = rank(library({
+      beta: [sign('cat', 1, 'https://data.test/beta'), sign('bee', 1, 'https://data.test/beta')],
+      alpha: [sign('dog'), sign('ant')]
+    }), byScore)
+    expect(idsOf(ranked)).toEqual(['bee', 'cat', 'ant', 'dog'])
   })
 
   it('still puts a better rank first, however late its id comes', () => {
@@ -30,11 +39,18 @@ describe('rank()', () => {
     expect(idsOf(ranked)).toEqual(['zebra', 'ant', 'bee'])
   })
 
-  it('puts equal-ranked signs with the same id in the order of their index addresses', () => {
+  it('puts equal-ranked signs with the same id in the order their indexes are listed in', () => {
     const inBeta = sign('cat', 1, 'https://data.test/beta')
     const inAlpha = sign('cat', 1, 'https://data.test/alpha')
     expect(rank(library({ beta: [inBeta], alpha: [inAlpha] }), byScore).entries.map(entry => entry.indexURL))
+      .toEqual(['https://data.test/beta', 'https://data.test/alpha'])
+    expect(rank(library({ alpha: [inAlpha], beta: [inBeta] }), byScore).entries.map(entry => entry.indexURL))
       .toEqual(['https://data.test/alpha', 'https://data.test/beta'])
+  })
+
+  it('lets a better rank beat a better place in the list, so the order of the indexes only settles ties', () => {
+    const ranked = rank(library({ alpha: [sign('ant', 2)], beta: [sign('zebra', 1, 'https://data.test/beta')] }), byScore)
+    expect(idsOf(ranked)).toEqual(['zebra', 'ant'])
   })
 
   it('compares ids by their characters, not by the viewer\'s language, so every machine agrees', () => {
