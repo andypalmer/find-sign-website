@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { FakeDataServer } from '@find-sign/test-helpers/fake-data-server.ts'
 import { FakeShelf } from '@find-sign/test-helpers/fake-shelf.ts'
 import { FakeClock } from '@find-sign/test-helpers/fake-clock.ts'
-import { FileKeeper } from '../src/worker/file-keeper.ts'
+import { FileKeeper, FileUnavailable } from '../src/worker/file-keeper.ts'
 import { ManifestUnreadable } from '../src/worker/manifest-reader.ts'
 
 const base = 'https://data.example/index'
@@ -21,6 +21,21 @@ describe('the file keeper, asked for a file named by its contents', () => {
     const { keeper } = keeperWith({ 'shard-12.4f9a1c07be.json': '{"signs":[1]}' })
 
     expect(text(await keeper.fileNamed('shard-12.4f9a1c07be.json'))).toBe('{"signs":[1]}')
+  })
+
+  it('says why a file could not be fetched, with the status, so a missing file is not mistaken for a network failure', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{}' })
+    const missing = await keeper.fileNamed('shard-1.aaaaaaaaaa.json').catch(error => error)
+    expect(missing).toBeInstanceOf(FileUnavailable)
+    expect(missing).toMatchObject({ fileName: 'shard-1.aaaaaaaaaa.json', status: 404 })
+    expect(missing.message).toMatch(/shard-1/)
+
+    server.failures.set(`${base}/shard-2.bbbbbbbbbb.json`, 500)
+    expect(await keeper.fileNamed('shard-2.bbbbbbbbbb.json').catch(error => error)).toMatchObject({ status: 500 })
+
+    server.failures.set(`${base}/shard-3.cccccccccc.json`, 'network')
+    const noNetwork = await keeper.fileNamed('shard-3.cccccccccc.json').catch(error => error)
+    expect(noNetwork).not.toBeInstanceOf(FileUnavailable)
   })
 
   it('keeps the file, so asking again does not fetch it again', async () => {

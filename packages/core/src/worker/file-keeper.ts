@@ -17,6 +17,14 @@ export interface IRememberFilesByName {
   forget (name: string): Promise<void>
 }
 
+/** a file the keeper could not get, and the status the data server gave. (A network that can't be reached is not this: the fetch itself fails.) */
+export class FileUnavailable extends Error {
+  constructor (readonly fileName: string, readonly status: number) {
+    super(`could not fetch ${fileName}: status ${status}`)
+    this.name = 'FileUnavailable'
+  }
+}
+
 /** something that can say what time it is, in milliseconds */
 export interface IReadTheTime {
   now (): number
@@ -229,7 +237,7 @@ export class FileKeeper implements IHandOverIndexFiles {
       await this.manifest()
       response = await this.fetchFile(`${this.baseUrl}/${name}`)
     }
-    if (!response.ok) throw new Error(`could not fetch ${name}: status ${response.status}`)
+    if (!response.ok) throw new FileUnavailable(name, response.status)
     const bytes = new Uint8Array(await response.arrayBuffer())
     await this.shelf.remember(name, bytes)
     return bytes
