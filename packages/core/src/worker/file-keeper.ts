@@ -1,7 +1,7 @@
 // The file keeper: the worker's helper that hands out index files. It fetches a file once, puts it on
 // a shelf, and from then on hands it out from the shelf. (Later rounds teach it to check the manifest
 // and to clear the shelf.)
-import { ManifestReader, type IndexManifest, type IReadManifests } from './manifest-reader.ts'
+import { ManifestReader, type IndexManifest, type IReadManifests, type TopManifest } from './manifest-reader.ts'
 
 /** asks the network for a file; the real worker passes `fetch` */
 export type FetchAFile = (url: string, init?: { cache?: RequestCache, headers?: Record<string, string> }) => Promise<Response>
@@ -35,13 +35,18 @@ export interface IHandOverIndexFiles {
   tidy (): Promise<string[]>
 }
 
+/** what the manifests say right now: the manifest as written, the top manifest read, and each index's manifest read */
+type CurrentManifests = { manifestBytes: Uint8Array, top: TopManifest, indexes: Record<string, IndexManifest> }
+
 const manifestName = 'manifest.json'
 /** the shelf also holds the server's tag for the manifest we have, so a restarted worker can still ask "is this still the newest?" */
 const manifestTagName = 'manifest.json.tag'
 /** where the keeper writes down when it first noticed each file was out of date */
 const noticesName = 'keeper-notices.json'
+/** a copy of the manifest the keeper last finished tidying against, to tell when the manifest has changed */
+const tidiedAgainstName = 'keeper-tidied-against.json'
 /** files on the shelf that are the keeper's own, not index files, so they are never tidied away */
-const ownFiles = new Set([manifestName, manifestTagName, noticesName])
+const ownFiles = new Set([manifestName, manifestTagName, noticesName, tidiedAgainstName])
 const decode = (bytes: Uint8Array | undefined) => bytes ? new TextDecoder().decode(bytes) : ''
 
 export class FileKeeper implements IHandOverIndexFiles {
@@ -72,16 +77,19 @@ export class FileKeeper implements IHandOverIndexFiles {
    * index costs one small file, not eleven.
    */
   async currentIndexes (): Promise<Record<string, IndexManifest>> {
-    return (await this.currentManifests()).indexes
+    const current = await this.currentManifests()
+    await this.tidyIfDue(current)
+    return current.indexes
   }
 
   /** the top manifest's index manifest names, and what each of those says */
-  private async currentManifests () {
-    const top = this.reader.readTop(await this.manifest())
+  private async currentManifests (): Promise<CurrentManifests> {
+    const manifestBytes = await this.manifest()
+    const top = this.reader.readTop(manifestBytes)
     const indexes = await Promise.all(Object.entries(top.indexes).map(async ([indexName, manifestFile]) => {
       return [indexName, this.reader.readIndex(await this.fileNamed(manifestFile))] as const
     }))
-    return { top, indexes: Object.fromEntries(indexes) }
+    return { manifestBytes, top, indexes: Object.fromEntries(indexes) }
   }
 
   /**
@@ -92,7 +100,36 @@ export class FileKeeper implements IHandOverIndexFiles {
    * (A file fetched at the very moment of a tidy is safe: the grace period is days, not moments.)
    */
   async tidy (): Promise<string[]> {
-    const { top, indexes } = await this.currentManifests()
+    return this.tidyAgainst(await this.currentManifests())
+  }
+
+  /**
+   * Tidies when something could have changed: the manifest is not the one we last tidied against, or a file
+   * we are waiting on has waited long enough. Otherwise everything we hold is as current as it was last time,
+   * and there is nothing to do. A failed tidy must not spoil the search that set it off; it is tried again
+   * next time because the "tidied against" copy is only written when a tidy finishes.
+   */
+  private async tidyIfDue (current: CurrentManifests): Promise<void> {
+    try {
+      const tidiedAgainst = await this.shelf.recall(tidiedAgainstName)
+      const manifestChanged = !tidiedAgainst || decode(tidiedAgainst) !== decode(current.manifestBytes)
+      const oldestNotice = Math.min(...Object.values(await this.readNotices()))
+      // with no notes there is no oldest one, and the sum below comes out false, so no tidy is due
+      const aWaitIsOver = this.clock.now() - oldestNotice > this.graceMs
+      if (manifestChanged || aWaitIsOver) await this.tidyAgainst(current)
+    } catch {
+      // see above
+    }
+  }
+
+  /**
+   * Throws away kept files that no current manifest mentions and that we first noticed were out of date more
+   * than the grace period ago. A visitor part-way through a session may still want a file the newest build
+   * has dropped, so we wait. We write down when we first noticed, so the wait survives a restart. If we
+   * cannot read the manifest we cannot tell what is current, so we throw nothing away.
+   * (A file fetched at the very moment of a tidy is safe: the grace period is days, not moments.)
+   */
+  private async tidyAgainst ({ manifestBytes, top, indexes }: CurrentManifests): Promise<string[]> {
     const current = new Set<string>(Object.values(top.indexes))
     for (const index of Object.values(indexes)) for (const name of this.reader.fileNamesIn(index)) current.add(name)
 
@@ -111,6 +148,7 @@ export class FileKeeper implements IHandOverIndexFiles {
       }
     }
     await this.shelf.remember(noticesName, new TextEncoder().encode(JSON.stringify(stillOutOfDate)))
+    await this.shelf.remember(tidiedAgainstName, manifestBytes)
     return dropped
   }
 

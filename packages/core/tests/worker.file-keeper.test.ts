@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { FakeDataServer } from '@find-sign/test-helpers/fake-data-server.ts'
 import { FakeShelf } from '@find-sign/test-helpers/fake-shelf.ts'
 import { FakeClock } from '@find-sign/test-helpers/fake-clock.ts'
@@ -434,5 +434,95 @@ describe('the file keeper, tidying up files that are out of date', () => {
 
     await expect(keeper.tidy()).rejects.toThrow(ManifestUnreadable)
     expect(await stillKept(keeper, timesFetched)).toBe(true)
+  })
+})
+
+describe('the file keeper, tidying by itself as searches go through it', () => {
+  const manifestUrl = `${base}/manifest.json`
+  const indexOne = { shardCount: 1, shards: ['shard-0.aaaaaaaaaa.json'], scans: ['scan-0.bbbbbbbbbb.json'], vectors: [] as string[] }
+  const indexTwo = { ...indexOne, shards: ['shard-0.cccccccccc.json'] }
+  const oldShard = 'shard-0.aaaaaaaaaa.json'
+
+  function publish (server: FakeDataServer, contents: typeof indexOne) {
+    const name = `index-alpha.${contents.shards[0].slice(8, 18)}.json`
+    server.set(`${base}/${name}`, contents)
+    for (const file of [...contents.shards, ...contents.scans]) server.set(`${base}/${file}`, `bytes of ${file}`)
+    server.set(manifestUrl, { version: 2, indexes: { alpha: name } })
+  }
+
+  /** a keeper that has seen build one and fetched its shard; the data server then moves on to build two */
+  async function keeperWhenTheBuildMovesOn () {
+    const server = new FakeDataServer()
+    const clock = new FakeClock()
+    const shelf = new FakeShelf()
+    const keeper = new FileKeeper((url, init) => server.fetch(url, init), shelf, base, { clock })
+    publish(server, indexOne)
+    await keeper.currentIndexes()
+    await keeper.fileNamed(oldShard)
+    publish(server, indexTwo)
+    const tidyChecks = vi.spyOn(shelf, 'names') // tidying always lists the shelf
+    const oldShardFetches = () => server.requests.filter(r => r.path.endsWith(oldShard)).length
+    return { server, clock, shelf, keeper, tidyChecks, oldShardFetches }
+  }
+
+  async function stillKept (keeper: FileKeeper, oldShardFetches: () => number) {
+    const before = oldShardFetches()
+    await keeper.fileNamed(oldShard)
+    return oldShardFetches() === before
+  }
+
+  it('starts the wait when a search sees a new manifest, then drops the files once the wait is over, though the manifest has not changed again', async () => {
+    const { keeper, clock, oldShardFetches } = await keeperWhenTheBuildMovesOn()
+    await keeper.currentIndexes()
+    clock.passDays(31)
+    await keeper.currentIndexes()
+
+    expect(await stillKept(keeper, oldShardFetches)).toBe(false)
+  })
+
+  it('does not tidy again while the manifest is the same and no waiting file is ready to go', async () => {
+    const { keeper, clock, tidyChecks } = await keeperWhenTheBuildMovesOn()
+    await keeper.currentIndexes()
+    tidyChecks.mockClear()
+    clock.passDays(10)
+
+    await keeper.currentIndexes()
+    await keeper.currentIndexes()
+
+    expect(tidyChecks).not.toHaveBeenCalled()
+  })
+
+  it('keeps a waiting file until its wait is over, however many searches go through', async () => {
+    const { keeper, clock, oldShardFetches } = await keeperWhenTheBuildMovesOn()
+    await keeper.currentIndexes()
+    clock.passDays(29)
+    await keeper.currentIndexes()
+    expect(await stillKept(keeper, oldShardFetches)).toBe(true)
+
+    clock.passDays(2)
+    await keeper.currentIndexes()
+    expect(await stillKept(keeper, oldShardFetches)).toBe(false)
+  })
+
+  it('does not count an explicit tidy as a reason to tidy again for the same manifest', async () => {
+    const { keeper, tidyChecks } = await keeperWhenTheBuildMovesOn()
+    await keeper.tidy()
+    tidyChecks.mockClear()
+
+    await keeper.currentIndexes()
+
+    expect(tidyChecks).not.toHaveBeenCalled()
+  })
+
+  it('still answers the search when the tidying fails, and tries the tidying again on the next search', async () => {
+    const { keeper, clock, shelf } = await keeperWhenTheBuildMovesOn()
+    await keeper.currentIndexes()
+    clock.passDays(31)
+    const forget = vi.spyOn(shelf, 'forget').mockRejectedValue(new Error('storage is full of sorrow'))
+
+    expect(Object.keys(await keeper.currentIndexes())).toEqual(['alpha'])
+    await keeper.currentIndexes()
+
+    expect(forget.mock.calls.length).toBeGreaterThan(1)
   })
 })
