@@ -33,8 +33,15 @@ export default function rank (library: SearchLibrary, filterFn: RankingFilterFun
       }
     })
   }).sort((x, y) => {
-    return x.rank - y.rank
+    // signs that rank equally go in id order (then index address, for the same id in two indexes), so the
+    // order never depends on how the build happened to list them
+    return (x.rank - y.rank) || compareText(x.id ?? '', y.id ?? '') || compareText(x.indexURL, y.indexURL)
   })
 
   return { entries }
+}
+
+// by characters, not by the viewer's language, so every machine agrees
+function compareText (a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0
 }
