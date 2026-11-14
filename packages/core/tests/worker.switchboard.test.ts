@@ -29,6 +29,27 @@ describe('the switchboard', () => {
     expect(await question.lateRepliesAfterAWhile()).toEqual([])
   })
 
+  it('gives back a promise that settles once the page has its ending, so a worker can stay awake until then', async () => {
+    const posted: { kind: string, details?: unknown }[] = []
+    const port = { postMessage: (message: { kind: string }) => { posted.push(message) }, close: () => {}, onmessage: null } as unknown as MessagePort
+    const board = new Switchboard({ 'search-desk': new TestDesk(async () => { await new Promise(resolve => setTimeout(resolve, 10)); return 'late' }) })
+
+    const done = board.receive({ protocol: 1, to: 'search-desk', ask: 'search', details: {} }, port)
+    expect(done).toBeInstanceOf(Promise)
+    expect(posted).toEqual([])
+    await done
+    expect(posted.at(-1)).toMatchObject({ kind: 'answer', details: 'late' })
+  })
+
+  it('settles its promise when it turns a letter down, too, after telling the page', async () => {
+    const posted: { kind: string, reason?: string }[] = []
+    const port = { postMessage: (message: { kind: string }) => { posted.push(message) }, close: () => {}, onmessage: null } as unknown as MessagePort
+    const done = new Switchboard({}).receive({ protocol: 1, to: 'nobody-here', ask: 'x', details: {} }, port)
+    expect(done).toBeInstanceOf(Promise)
+    await done
+    expect(posted.at(-1)).toMatchObject({ kind: 'failed', reason: 'no-such-actor' })
+  })
+
   it('tells the page when no desk has the name on the letter', async () => {
     const desk = new TestDesk()
     const ending = await officeWith({ 'search-desk': desk }).ask('nobody-here', 'search').finished

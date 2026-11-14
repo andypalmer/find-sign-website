@@ -27,7 +27,11 @@ const config = {
 
 			prerender: {
 				crawl: false
-			}
+			},
+
+			// the service worker (src/service-worker.ts) needs the site's settings in its address, which the page
+			// puts there when it registers it, so the page registers it, not sveltekit
+			serviceWorker: { register: false }
 		})
 	],
 	// allow requests forwarded by the dev TLS proxy (dev/Caddyfile) for this machine's .local name

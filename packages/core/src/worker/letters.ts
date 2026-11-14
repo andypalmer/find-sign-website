@@ -59,5 +59,6 @@ export class DeskRefusal extends Error {
 
 /** the front door of the worker: takes a letter and the channel to answer on */
 export interface IReceiveLetters {
-  receive (letter: unknown, replyPort: ReplyPort): void
+  /** the promise settles once the page has been given its ending */
+  receive (letter: unknown, replyPort: ReplyPort): Promise<void>
 }

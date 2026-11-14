@@ -60,9 +60,10 @@ function readLetter (letter: unknown): Letter | string {
 export class Switchboard implements IReceiveLetters {
   constructor (private desks: Record<string, IAnswerLetters>) {}
 
-  receive (letter: unknown, replyPort: ReplyPort): void {
+  /** the promise settles once the page has been given its ending, so a worker can stay awake until then */
+  receive (letter: unknown, replyPort: ReplyPort): Promise<void> {
     const replies = new OneQuestionsReplies(replyPort)
-    this.passItOn(letter, replies).catch(error => {
+    return this.passItOn(letter, replies).catch(error => {
       replies.fail('unexpected', `the switchboard broke: ${(error as Error).message}`)
     })
   }
