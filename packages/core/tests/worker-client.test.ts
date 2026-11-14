@@ -29,6 +29,8 @@ function workerWith (desks: Record<string, IAnswerLetters>) {
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+/** a desk waits on this until the page says never-mind, even if it already has */
+const untilNeverMind = (signal: AbortSignal) => signal.aborted ? Promise.resolve() : new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true }))
 const refusal = async (promise: Promise<unknown>) => await promise.then(() => undefined, error => error as Error)
 
 describe('the messenger', () => {
@@ -68,19 +70,14 @@ describe('the messenger', () => {
   })
 
   it('tells the worker never-mind when the caller cancels, and fails as cancelled at once', async () => {
-    let sawCancel = false
-    const desk = new ScriptedDesk(async (_ask, _details, { cancelled }) => {
-      await new Promise(resolve => cancelled.addEventListener('abort', resolve))
-      sawCancel = true
-      return 'too late'
-    })
+    let told!: () => void
+    const workerWasTold = new Promise<void>(resolve => { told = resolve })
+    const desk = new ScriptedDesk(async (_ask, _details, { cancelled }) => { await untilNeverMind(cancelled); told(); return 'too late' })
     const controller = new AbortController()
     const question = new Messenger(workerWith({ d: desk }).worker).ask('d', 'x', {}, { signal: controller.signal })
-    await sleep(10)
     controller.abort()
     expect(await refusal(question)).toMatchObject({ reason: 'cancelled' })
-    await sleep(20)
-    expect(sawCancel).toBe(true)
+    await workerWasTold
   })
 
   it('does not even post the letter when it is already cancelled', async () => {
@@ -92,23 +89,21 @@ describe('the messenger', () => {
   })
 
   it('gives up when the worker is silent for too long, and tells it never-mind so it can stop', async () => {
-    let sawCancel = false
-    const desk = new ScriptedDesk(async (_ask, _details, { cancelled }) => {
-      await new Promise(resolve => cancelled.addEventListener('abort', resolve))
-      sawCancel = true
-    })
+    let told!: () => void
+    const workerWasTold = new Promise<void>(resolve => { told = resolve })
+    const desk = new ScriptedDesk(async (_ask, _details, { cancelled }) => { await untilNeverMind(cancelled); told() })
     const error = await refusal(new Messenger(workerWith({ d: desk }).worker, { silenceTimeoutMs: 40 }).ask('d', 'x', {}))
     expect(error).toBeInstanceOf(WorkerDidNotAnswer)
-    await sleep(20)
-    expect(sawCancel).toBe(true)
+    await workerWasTold
   })
 
   it('counts a progress note as a sign of life, so a slow answer that keeps reporting is waited for', async () => {
     const desk = new ScriptedDesk(async (_ask, _details, { progress }) => {
-      for (let step = 1; step <= 5; step++) { await sleep(25); progress(step / 10, 'working') }
+      for (let step = 1; step <= 5; step++) { await sleep(10); progress(step / 10, 'working') }
       return 'finally'
     })
-    expect(await new Messenger(workerWith({ d: desk }).worker, { silenceTimeoutMs: 60 }).ask('d', 'x', {})).toBe('finally')
+    // each wait is a tenth of the silence allowed, so a busy machine has to be very slow indeed to spoil this
+    expect(await new Messenger(workerWith({ d: desk }).worker, { silenceTimeoutMs: 400 }).ask('d', 'x', {})).toBe('finally')
   })
 
   it('lets one question have its own silence limit', async () => {

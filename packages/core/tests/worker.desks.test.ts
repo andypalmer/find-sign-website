@@ -6,7 +6,7 @@ import { OutdatedError } from '#lib/orthagonal/read.ts'
 import { FrontDesk, SearchDesk } from '../src/worker/desks.ts'
 import { FileKeeper } from '../src/worker/file-keeper.ts'
 import { KeptLibrary } from '../src/worker/kept-library.ts'
-import { DeskRefusal, type DeskHelpers, type Reply } from '../src/worker/letters.ts'
+import { DeskRefusal, type DeskHelpers, type IAnswerLetters, type Reply } from '../src/worker/letters.ts'
 import { Switchboard } from '../src/worker/switchboard.ts'
 import type { SearchLibrary, SearchSeams } from '../src/search/search-engine.ts'
 
@@ -149,6 +149,18 @@ describe('letters to the desks, through the switchboard', () => {
   const meaning: { [word: string]: number[] } = { cat: [1, 0, 0, 0], kitten: [0.9, 0.1, 0, 0], car: [0, 0, 1, 0] }
   const signs = (list: string[]) => Object.fromEntries(list.map(name => [name, { title: name.toUpperCase(), words: [name], tags: [], body: `About the ${name}.`, timestamp: 1, media: [] }])) as unknown as EncodedSearchData
 
+  /** wraps a desk and says when it has been told never-mind, so a test can wait for that and not guess how long it takes */
+  class WatchingDesk implements IAnswerLetters {
+    sawNeverMind: Promise<void>
+    private saw!: () => void
+    constructor (private inner: IAnswerLetters) { this.sawNeverMind = new Promise(resolve => { this.saw = resolve }) }
+    answer (ask: string, details: unknown, helpers: DeskHelpers) {
+      if (helpers.cancelled.aborted) this.saw()
+      else helpers.cancelled.addEventListener('abort', () => this.saw(), { once: true })
+      return this.inner.answer(ask, details, helpers)
+    }
+  }
+
   async function setUp () {
     const server = new FakeDataServer()
     const data = { alpha: signs(['cat', 'kitten']), beta: signs(['car']) }
@@ -157,11 +169,9 @@ describe('letters to the desks, through the switchboard', () => {
     for (const file of planPublishOrder(written, vectors)) server.set(`${base}/${file.name}`, file.contents)
     const keeper = new FileKeeper((url, init) => server.fetch(url, init), new FakeShelf(), base)
     const library = new KeptLibrary(keeper, { baseUrl: base, indexes: ['alpha', 'beta'] })
-    const switchboard = new Switchboard({
-      'front-desk': new FrontDesk('test-build'),
-      'search-desk': new SearchDesk(library.asSearchSeams(async () => undefined))
-    })
-    return { server, switchboard }
+    const watching = new WatchingDesk(new SearchDesk(library.asSearchSeams(async () => undefined)))
+    const switchboard = new Switchboard({ 'front-desk': new FrontDesk('test-build'), 'search-desk': watching })
+    return { server, switchboard, watching }
   }
 
   /** sends a letter and gathers every reply until the exchange ends */
@@ -209,7 +219,10 @@ describe('letters to the desks, through the switchboard', () => {
   })
 
   it('ends a search with cancelled when the page says never-mind', async () => {
-    const { switchboard } = await setUp()
+    const { switchboard, server, watching } = await setUp()
+    // the data server holds its answers until the desk has been told never-mind, so the search can't finish first
+    const answer = server.fetch.bind(server)
+    server.fetch = async (input, init) => { await watching.sawNeverMind; return await answer(input, init) }
     const replies = await post(switchboard, { protocol: 1, to: 'search-desk', ask: 'search', details: { query: 'cat', start: 0, length: 10 } }, { neverMindAfterFirstReply: true })
     expect(replies.at(-1)).toMatchObject({ kind: 'failed', reason: 'cancelled' })
   })
