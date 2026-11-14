@@ -58,6 +58,38 @@ files, so a sign keeps the same id on both sites, and curators' work reaches eac
 index is about 45 MB, while the videos are gigabytes, so only the indexes are kept twice. Encoded files are named
 for their source video, so re-encoding a changed video never overwrites what the other site still plays.
 
+## The data server (nginx)
+
+The index files come from a plain nginx that serves the find sign collections as static files. It can't search,
+batch files, list a folder or accept writes, so everything the browser needs from it has to be a file it can
+fetch. `nginx-index-files.conf` here holds the settings we want on its `/collections/` location. Put the file
+in nginx's config and `include` it there, or copy the lines.
+
+What it does, measured with headless Chrome against a local nginx using these settings (11 indexes, the same
+steps before and after):
+
+| | before | with the settings |
+| --- | --- | --- |
+| a visitor's first search | 5,833 kB | 3,542 kB |
+| a later one-word search | 164 kB | 28 kB |
+| a later two-word search | 173 kB | 34 kB |
+| requests per search | 22 to 32 | 22 to 32 |
+
+- **It squashes the JSON files** (columns, shards, `meta.json`). A `tags.json` goes from 750 kB to 31 kB.
+  `nginx` still answers "has this changed?" with a `304`, even for a squashed file.
+- **It leaves the `.lps` files alone.** They are word vectors, lists of decimal numbers that barely shrink
+  (`global-vectors.lps` goes from 3.28 MB to 3.03 MB). That one file is 93% of what a first search still
+  downloads, so making it smaller is a job for the index format, not for nginx.
+- **It does not touch caching.** The index files keep their names from one build to the next, so a long
+  `max-age` would hand out stale files, and `no-cache` would add a request per column per search. The app
+  already checks each index's `meta.json` and re-fetches anything out of date. When files are named after their
+  contents they can be sent as `immutable`, and the settings file shows the line to add.
+- **It doesn't cut the number of requests.** Only the browser's behaviour does that (which is what the service
+  worker is for), and the `404`s for a missing `englishPhrases.json`.
+
+If the data host sits behind Cloudflare or another proxy, check what it does to these files too: compare the
+`content-encoding` header of an index file fetched from the public address and straight from nginx.
+
 ## Rolling out a new version
 
 Once CI has pushed new images:
