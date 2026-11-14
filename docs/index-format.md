@@ -3,8 +3,8 @@
 The design for the next index format ("version 2"). The goal: when a few signs are added, changed or
 removed, a visitor who already holds the index downloads a few kilobytes, not the whole thing, and the
 files they already hold stay valid. It has to work on a plain nginx serving static files, because that is
-all the data server is. The writer and reader live in the `find-sign-pipeline` repo; this page says what they
-must produce, and what the service worker relies on.
+all the data server is. The writer and reader live in the `find-sign-pipeline` repo (`@andypalmer/orthagonal`);
+this page says what they must produce, and what the service worker relies on.
 
 ## What is wrong today
 
@@ -34,41 +34,63 @@ so the name is the same, so everyone who has it keeps it. A changed shard gets a
 handed a file that doesn't match its name. Nothing inside a file says which build it came from.
 
 **Keep one small file that can change: `manifest.json`.** It lists, for each index, the name of that index's
-own manifest, and the format version. Each index's manifest (itself content-named) lists its shards, its scan
-files and its vector buckets. A visitor asks for `manifest.json` (a conditional request, usually a `304` of a few
-hundred bytes), and if it hasn't changed, nothing else is needed. If it has, they fetch only the index manifests
-whose names changed, and from those only the files whose names are new. One request replaces today's 11.
+own manifest, the names of the word vector files that every index shares, and the format version. Each
+index's manifest (itself content-named) lists its shards and its scan files. A visitor asks for `manifest.json`
+(a conditional request, usually a `304` of a few hundred bytes), and if it hasn't changed, nothing else is
+needed. If it has, they fetch only the index manifests whose names changed, and from those only the files whose
+names are new. One request replaces today's 11.
 
-**Two kinds of file, because they are used in two ways.**
+**Two kinds of file in each index, because they are used in two ways.**
 
 - *Shards* hold whole signs (the body, the videos). A results page needs ten signs, so ten small
   files is right. Target about 16 signs per shard.
 - *Scan files* hold what every search looks at: for each sign, its id, title, words, tags, English phrases,
-  aliases and dates. A search needs all of them, so they are few and bigger: about 1,300 signs each, split
-  by the same hash. Most indexes need one; the biggest needs eight and the next four.
+  aliases, dates, link and author. A search needs all of them, so they are few and bigger: about 1,300 signs
+  each, split by the same hash. Most indexes need one; the biggest needs nine and the next four.
 
-**Word vectors, split by word.** A word goes in bucket `hash(word) % 64`, in a content-named file of about 51 kB.
-A word's vector never changes, so a bucket only changes when a new word lands in it. We never remove a word
-from a bucket when its last sign goes (a stale word is harmless and small); a planned rebuild clears them.
-The number 64 trades first-visit requests (64) against how much changes per build (a few buckets).
+**Word vectors, shared by the whole collection and split by word.** A word goes in bucket `hash(word) % 64`,
+in a content-named file of about 50 kB. There is one set of buckets for the whole collection, listed in
+`manifest.json`, because the indexes share most of their words: the ten indexes use 16,256 words if we count
+each on its own, but only 10,623 different ones. Giving every index its own buckets would make a visitor
+download the same word's vector again for each index (5.05 MB before compressing, against 3.28 MB shared,
+which is the size of today's `global-vectors.lps`). A word's vector never changes, so a bucket only changes
+when a new word lands in it. We never remove a word from a bucket when its last sign goes (a stale word is
+harmless and small); a planned rebuild clears them. To keep them, the indexer passes the last build's words
+back in, read out of the last build's buckets, and that gives the same bytes. The number 64 trades first-visit
+requests (64) against how much changes per build (a few buckets).
 
-**Publish in an order that is never wrong.** The writer writes every content-named file first, then the index
-manifests, and `manifest.json` last. Until that last write, visitors see the old, complete build. Today's
-order (meta first) leaves a window where files disagree, and that is what the `OutdatedError` retry papers over.
+**Publish in an order that is never wrong.** The writer writes every content-named file first (shards, scan
+files and vector buckets), then the index manifests, and `manifest.json` last. Until that last write, visitors
+see the old, complete build. Today's order (meta first) leaves a window where files disagree, and that is
+what the `OutdatedError` retry papers over.
 
 **Keep old files for a while.** A visitor in the middle of a session may still ask for a file the newest build
 no longer uses. The writer deletes a content-named file only when none of the last ten manifests mention it
 and it is over 30 days old. If a content-named file is ever missing (`404`), the reader fetches
-`manifest.json` again, ignoring its cache, and tries once more. That one rule replaces the `OutdatedError` retry.
+`manifest.json` again, ignoring its cache, works the file's name out again from the new manifests, and tries
+once more. That one rule replaces the `OutdatedError` retry.
+
+**Keep the counts fixed.** The shard a sign lives in comes from its id and the shard count, so changing the
+count moves almost every sign, and every shard in that index gets a new name. If we let the count follow the
+number of signs (16 per shard), one extra sign could do it: 324 shards is exactly full at 5,184 signs, and the
+5,185th would ask for 325. So once an index has a count, the writer keeps it as signs come and go, and only
+doubles it when the average shard holds more than twice its target. See "Changing the numbers later".
 
 **Cache headers become possible.** Content-named files never change, so nginx can send them with
 `Cache-Control: public, max-age=31536000, immutable`, matched by their names (a dot, ten hex digits, then
 `.json` or `.lps`). `manifest.json` is sent with `no-cache`, so it is checked every time. Cloudflare can cache the
 immutable files for good, so almost no request reaches the origin.
 
-**Ties are broken by id.** Results that rank equally come out today in the order the build listed the signs. That
-order no longer means anything, so the reader must break ties by id, on purpose. (A small change for signs that
-tie; the tests will say which searches it touches.)
+**Ties are broken by id.** Results that rank equally used to come out in the order the build listed the
+signs. That order no longer means anything, so the ranking breaks ties by id on purpose (then by the index's
+address, for the same id in two indexes). We measured what that changes, on the real index with its real word
+vectors, over 380 searches: single words, two words, whole titles, tags alone, and tags with a word. For the
+360 that found anything, the tie-break changed the first ten results of 131 (36%) and the first fifty of 214
+(59%). In 124 (34%) a tie straddled the end of the first page, so which signs appear on page one can change,
+not only their order. Nothing is lost or added: signs that tie swap places, and in the examples we looked at they
+were mostly the same word from two providers. One catch: the ranking needs each sign's id, and today's
+search only loads the columns the query needs, which don't include `id`, so until the site reads version 2
+(whose scan files carry the id for every sign) ties fall back to the order of the index addresses.
 
 **A renamed sign moves.** Its id changes, so its shard does too: two shards change, and the old id is kept as an
 alias. A visitor who opens the old address finds the new id in the scan files' aliases, then the new shard.
@@ -86,9 +108,12 @@ needs nothing more than "which names are mentioned".
   "indexes": {
     "alpha": "index-alpha.1a2b3c4d5e.json",
     "beta": "index-beta.9f8e7d6c5b.json"
-  }
+  },
+  "vectors": ["vectors-0.b1b2b3b4b5.lps", "vectors-1.c1c2c3c4c5.lps"]
 }
 ```
+
+The number of files in `vectors` is the bucket count, so a word's bucket is `hash(word) % vectors.length`.
 
 An index's manifest (content-named, so it never changes):
 
@@ -96,10 +121,11 @@ An index's manifest (content-named, so it never changes):
 {
   "shardCount": 1100,
   "shards": ["shard-0.4f9a1c07be.json", "shard-1.c3d4e5f6a7.json"],
-  "scans": ["scan-0.77aa01cc22.json"],
-  "vectors": ["vectors-0.b1b2b3b4b5.lps"]
+  "scans": ["scan-0.77aa01cc22.json"]
 }
 ```
+
+Every shard number has a name in `shards`, even a shard with no signs in it, so shard N is the Nth name.
 
 Rules the reader holds us to: every name is one plain file name (letters, numbers, dots, dashes and underscores;
 no folders, no `..`, no addresses), because a name is put on the end of the data server's address. A missing
@@ -108,30 +134,55 @@ the reader doesn't know is refused with a message that says so, and the page use
 
 ## What a build changes
 
-We re-cut the real 17,663 signs this way and then changed 30 of them (removed 5, edited 5, added 20):
+We cut the real collection this way: 18,177 signs in 10 indexes (two providers with nothing in them are left
+out), with the real word vectors. Sizes are gzipped.
 
-| signs per shard | shard files | average shard | shards that changed | new bytes to fetch |
+| kind of file | files | average | largest | in all |
 | --- | --- | --- | --- | --- |
-| 8 | 3,402 | 1.7 kB | 29 | 108 kB |
-| **16** | **1,702** | **2.7 kB** | **27** | **175 kB** |
-| 32 | 852 | 4.7 kB | 21 | 248 kB |
-| 64 | 428 | 8.4 kB | 15 | 331 kB |
+| shards (16 signs each) | 1,139 | 4.0 kB | 11.4 kB | 4.5 MB |
+| scan files | 21 | 30.7 kB | 68.8 kB | 0.64 MB |
+| shared vector buckets | 64 | 47.5 kB | 58.3 kB | 3.04 MB (3.28 MB before compressing) |
 
-All sizes are gzipped. The scan files for the same change: 22 files, 28 kB each on average (68 kB the
-largest), 0.62 MB in all; one file changed, 20 kB. Today, the same change makes every file new.
+That is 1,235 files to publish, and all 18,177 signs read back through the reader exactly as they went in. A
+rebuild with nothing changed makes no new file.
 
-We chose 16 per shard. Smaller means more files for a small saving; bigger makes every results page cost more
-(ten 64-sign shards are 84 kB, ten 16-sign shards are 27 kB) for fewer files overall.
+Then we changed 30 signs (removed 5, edited 5, added 20), keeping each index's counts and the old words:
 
-A returning visitor after that build downloads the manifest (a `304` or about 300 bytes), one scan file
-(about 20 kB), and only the shards they next open that changed. A first-time visitor downloads the scan
-files (0.62 MB) and the word vectors (3.28 MB), then shards as they look at signs.
+| where the 30 changes were | new files | new bytes | what changed |
+| --- | --- | --- | --- |
+| spread over all ten providers | 46 | 315 kB | 25 shards, 11 scan files, 10 index manifests |
+| all in one provider (`auslan-signbank`) | 33 | 431 kB | 28 shards, 4 scan files, 1 index manifest |
+
+`manifest.json` changes too, but it is a few hundred bytes. The signs we added used invented words with no
+vector, so no vector bucket changed; a real new word changes about one bucket (about 48 kB).
+
+Without the fixed counts, the one-provider change grew `auslan-signbank` from 324 to 325 shards, and every one of
+them got a new name: about 2.3 MB for the same 30 changes.
+
+A returning visitor after a build downloads the manifest (a `304` or about 300 bytes), the index manifests and
+scan files of the indexes that changed, and only the shards they next open that changed. A first-time visitor
+downloads the scan files (0.64 MB) and the word vectors (3.04 MB), then shards as they look at signs.
+
+We chose 16 signs per shard: smaller means more files for a small saving; bigger makes every results page cost
+more (ten of our 4 kB shards are about 40 kB) for fewer files overall. We measured only 16. An earlier version of
+this page had a table for 8, 32 and 64 as well, but its file counts didn't match the data (18,177 ÷ 16 is about
+1,140 shards, not 1,702), so we took it out.
 
 ## Changing the numbers later
 
-`shardCount` and the scan split are written in each index's manifest, so they can change without changing the
-format. Doubling a shard count splits every shard in two, and the visitor's old shards for that index become
-unused; do it only when the average shard has grown past about twice its target, and expect to refetch.
+The shard count and the scan count are written in each index's manifest (the scan count is the length of its
+`scans` list), and the vector bucket count is the length of `vectors` in `manifest.json`, so they can change
+without changing the format. The writer keeps them, with these rules:
+
+- **Shard count:** keep the last build's count while signs come and go. When the average shard holds more than
+  32 signs (twice the target), double the count, and keep doubling until it doesn't.
+- **Scan count:** the same, with 2,600 signs (twice 1,300).
+- **Never shrink.** Halving would move signs just the same, so an index that loses signs keeps its count.
+- **Doubling splits every shard cleanly in two.** A sign in shard `s` of `N` lands in shard `s` or `s + N` of
+  `2N`. A visitor's old shards for that index still go unused, so we expect a refetch; this should be rare.
+- **The vector bucket count never changes** on its own. Changing it moves every word, so it waits for a planned
+  rebuild.
+
 The format version in `manifest.json` is for changes that need new code; a reader that doesn't know a version
 says so and the page uses its fallback.
 
@@ -147,9 +198,11 @@ inherits that.
 
 ## Left open
 
-- **Making the vectors smaller.** Splitting them by word fixes how much changes per build, not how much a
-  first visit downloads (3.28 MB, which doesn't compress). Fewer numbers per word, or rounding harder, would
-  shrink it, but it changes search quality and needs measuring against real searches. A separate piece of work.
+- **Making the vectors smaller.** Sharing them fixes how much a first visit downloads across indexes (3.28 MB,
+  not 5.05 MB), and splitting them by word fixes how much changes per build, but 3.28 MB doesn't compress. Fewer
+  numbers per word, or rounding harder, would shrink it, but it changes search quality and needs measuring against
+  real searches. A separate piece of work.
 - **How long to keep old files** (ten manifests and 30 days are a guess; the first month of real use will tell).
 - **Per-index or whole-collection manifests.** We chose per-index files under one top manifest, because the admin
-  app builds one index at a time and the top manifest stays tiny.
+  app builds one index at a time and the top manifest stays tiny. The word vectors are the exception: they are
+  listed once, in the top manifest, because every index uses them.
