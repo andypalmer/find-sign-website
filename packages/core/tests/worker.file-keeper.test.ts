@@ -47,4 +47,27 @@ describe('the file keeper, asked for a file named by its contents', () => {
     expect(text(await keeper.fileNamed('scan-0.cccccccccc.json'))).toBe('already here')
     expect(server.requests).toEqual([])
   })
+
+  it('shares one fetch between askers who want the same file at the same time', async () => {
+    const { keeper, server } = keeperWith({ 'shard-3.dddddddddd.json': 'shared' })
+
+    const [first, second, third] = await Promise.all([
+      keeper.fileNamed('shard-3.dddddddddd.json'),
+      keeper.fileNamed('shard-3.dddddddddd.json'),
+      keeper.fileNamed('shard-3.dddddddddd.json')
+    ])
+
+    expect([text(first), text(second), text(third)]).toEqual(['shared', 'shared', 'shared'])
+    expect(server.requests).toHaveLength(1)
+  })
+
+  it('does not share a failed fetch with later askers: they get to try again', async () => {
+    const { keeper, server } = keeperWith({ 'shard-4.eeeeeeeeee.json': 'late' })
+    server.failures.set(`${base}/shard-4.eeeeeeeeee.json`, 'network')
+
+    await expect(keeper.fileNamed('shard-4.eeeeeeeeee.json')).rejects.toThrow()
+    server.failures.delete(`${base}/shard-4.eeeeeeeeee.json`)
+
+    expect(text(await keeper.fileNamed('shard-4.eeeeeeeeee.json'))).toBe('late')
+  })
 })

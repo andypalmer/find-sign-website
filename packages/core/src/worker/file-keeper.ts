@@ -18,10 +18,25 @@ export interface IHandOverIndexFiles {
 }
 
 export class FileKeeper implements IHandOverIndexFiles {
+  /** files being fetched right now; anyone else who wants one joins the same fetch */
+  private onTheWay = new Map<string, Promise<Uint8Array>>()
+
   /** `baseUrl` is the folder on the data server that the index files live in */
   constructor (private fetchFile: FetchAFile, private shelf: IRememberFilesByName, private baseUrl: string) {}
 
-  async fileNamed (name: string): Promise<Uint8Array> {
+  fileNamed (name: string): Promise<Uint8Array> {
+    const alreadyOnTheWay = this.onTheWay.get(name)
+    if (alreadyOnTheWay) return alreadyOnTheWay
+
+    const fetching = this.keptOrFetched(name)
+    this.onTheWay.set(name, fetching)
+    // once it has landed (or failed) the shelf, or a fresh try, takes over
+    const forgetIt = () => { this.onTheWay.delete(name) }
+    fetching.then(forgetIt, forgetIt)
+    return fetching
+  }
+
+  private async keptOrFetched (name: string): Promise<Uint8Array> {
     const kept = await this.shelf.recall(name)
     if (kept) return kept
 
