@@ -71,3 +71,42 @@ describe('the file keeper, asked for a file named by its contents', () => {
     expect(text(await keeper.fileNamed('shard-4.eeeeeeeeee.json'))).toBe('late')
   })
 })
+
+describe('the file keeper, asked for a file the server no longer has', () => {
+  // a server where the wanted file shows up once the manifest has been fetched again
+  function serverThatCatchesUp (name: string, contents: string) {
+    const server = new FakeDataServer()
+    const keeper = new FileKeeper(async (url, init) => {
+      const response = await server.fetch(url, init)
+      if (url.endsWith('/manifest.json')) server.set(`${base}/${name}`, contents)
+      return response
+    }, new FakeShelf(), base)
+    server.set(`${base}/manifest.json`, '{"version":2}')
+    return { server, keeper }
+  }
+
+  it('fetches the manifest again, ignoring its cache, and asks for the file once more', async () => {
+    const { keeper, server } = serverThatCatchesUp('shard-5.ffffffffff.json', 'now here')
+
+    expect(text(await keeper.fileNamed('shard-5.ffffffffff.json'))).toBe('now here')
+    expect(server.requests.map(r => r.path.split('/').pop())).toEqual(['shard-5.ffffffffff.json', 'manifest.json', 'shard-5.ffffffffff.json'])
+    expect(server.requests[1].cache).toBe('no-cache')
+  })
+
+  it('gives up after trying once more, rather than going round in circles', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"version":2}' })
+
+    await expect(keeper.fileNamed('shard-6.0000000000.json')).rejects.toThrow(/shard-6/)
+    expect(server.requests).toHaveLength(3)
+  })
+
+  it('does not refetch the manifest for a failure that is not a missing file', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"version":2}' })
+    server.failures.set(`${base}/shard-7.1111111111.json`, 500)
+    server.failures.set(`${base}/shard-8.2222222222.json`, 'network')
+
+    await expect(keeper.fileNamed('shard-7.1111111111.json')).rejects.toThrow()
+    await expect(keeper.fileNamed('shard-8.2222222222.json')).rejects.toThrow()
+    expect(server.requests.filter(r => r.path.endsWith('manifest.json'))).toEqual([])
+  })
+})

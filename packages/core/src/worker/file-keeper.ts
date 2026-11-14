@@ -1,9 +1,9 @@
 // The file keeper: the worker's helper that hands out index files. It fetches a file once, puts it on
-// a shelf, and from then on hands it out from the shelf. (Later rounds teach it to check the manifest,
-// to share one fetch between askers, and to clear the shelf.)
+// a shelf, and from then on hands it out from the shelf. (Later rounds teach it to check the manifest
+// and to clear the shelf.)
 
 /** asks the network for a file; the real worker passes `fetch` */
-export type FetchAFile = (url: string) => Promise<Response>
+export type FetchAFile = (url: string, init?: { cache?: RequestCache }) => Promise<Response>
 
 /** a shelf that remembers files by name; the real one is backed by browser storage, tests use a fake */
 export interface IRememberFilesByName {
@@ -40,7 +40,14 @@ export class FileKeeper implements IHandOverIndexFiles {
     const kept = await this.shelf.recall(name)
     if (kept) return kept
 
-    const response = await this.fetchFile(`${this.baseUrl}/${name}`)
+    let response = await this.fetchFile(`${this.baseUrl}/${name}`)
+    if (response.status === 404) {
+      // The build may have moved on and the server tidied this file away. Look at the manifest afresh (the
+      // manifest is the one file that can change, so never trust a copy of it), then try once more.
+      // For now the manifest's contents are not used; a later round has the keeper act on them.
+      await this.fetchFile(`${this.baseUrl}/manifest.json`, { cache: 'no-cache' })
+      response = await this.fetchFile(`${this.baseUrl}/${name}`)
+    }
     if (!response.ok) throw new Error(`could not fetch ${name}: status ${response.status}`)
     const bytes = new Uint8Array(await response.arrayBuffer())
     await this.shelf.remember(name, bytes)
