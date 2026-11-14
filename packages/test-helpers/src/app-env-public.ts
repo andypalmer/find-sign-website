@@ -6,4 +6,5 @@ export const SEARCH_INDEX_NAME = env.SEARCH_INDEX_NAME as string
 export const SEARCH_INDEXES = env.SEARCH_INDEXES as string
 export const VECTOR_INDEX = env.VECTOR_INDEX as string
 export const VERSION_LABEL = env.VERSION_LABEL || undefined
+export const SERVICE_WORKER = env.SERVICE_WORKER || undefined
 export const ADMIN_URL = env.ADMIN_URL || undefined

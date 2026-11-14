@@ -153,6 +153,23 @@ updates when the browser next checks). So a page and a worker can disagree about
   and falls back.)
 - A page that can't agree with the worker uses the fallback, and asks the browser to update the worker.
 
+## Turning it on
+
+The page uses the worker only when the `SERVICE_WORKER` setting is `on` (`true`, `1` and `yes` also count, in any
+case). Anything else, including not setting it, is off, so a typo never turns it on.
+
+- **Off:** the page registers nothing and searches the way it always has. If a worker was left behind from when
+  the setting was on, the page unregisters it, once, so that switching it off really does switch it off.
+- **On:** the page registers `/service-worker.js` as soon as it loads, in the background, so the worker is usually
+  ready by the time someone searches. The settings the worker needs (where the index is, which indexes to search
+  and in what order, where the word vectors are) are on the end of the address it is registered at. The site
+  reads its settings when its server starts, so one build can't hold them, and the address is the one place the
+  page and the worker both see. A change of settings is a different address, so the browser installs a new worker.
+- **First visit:** the worker has to be installed first. A search waits for it for at most four seconds, then
+  uses the direct search; the worker carries on installing for next time.
+- **Always:** the server's own render never uses the worker (only a browser has one). Whenever the worker can't
+  answer, the page falls back to the direct search, except for the two problems the table above says to show.
+
 ## Decided here, and what we left out
 
 Decided:

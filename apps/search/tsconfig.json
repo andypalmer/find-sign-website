@@ -4,5 +4,9 @@
 		"src",
 		"vite.config.js",
 		"tests"
+	],
+	// the service worker has its own tsconfig, with the types of a worker, not a page
+	"exclude": [
+		"src/service-worker"
 	]
 }

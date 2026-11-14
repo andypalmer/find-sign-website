@@ -1,6 +1,6 @@
 import type { PageLoad } from './$types'
 import { redirect } from '@sveltejs/kit'
-import { search } from '@find-sign/core/search/search.ts'
+import { pageSearch } from '#lib/worker-search.ts'
 import clientRecordAnalytics from '#lib/models/client-record-analytics.ts'
 import { browser } from '$app/env'
 
@@ -16,7 +16,7 @@ export const load: PageLoad = async ({ url, fetch }) => {
   if (query.trim() === '') throw redirect(301, '/');
 
   let actualQuery = region ? `#${region} (${query})` : query
-  const { results, totalResults } = await search(actualQuery, page * resultsPerPage, resultsPerPage)
+  const { results, totalResults } = await pageSearch.search(actualQuery, page * resultsPerPage, resultsPerPage)
   const totalPages = Math.min(maxPages, Math.ceil(totalResults / resultsPerPage))
 
   if (browser && !url.searchParams.has('automated')) {

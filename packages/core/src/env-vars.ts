@@ -30,6 +30,7 @@ export const coreEnvVars = {
   SEARCH_INDEXES: { public: true, schema: required, description: 'comma separated ids of the providers to search' },
   VECTOR_INDEX: { public: true, schema: required, description: 'url of the precomputed word vector library' },
   VERSION_LABEL: { public: true, schema: optional, description: 'label shown with the logo, such as "Beta"' },
+  SERVICE_WORKER: { public: true, schema: optional, description: 'set to "on" to search through the service worker, which keeps the index in the browser. Off when unset' },
 }
 
 /** read by the indexer, which only runs on the admin server */

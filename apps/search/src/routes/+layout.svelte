@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { LayoutData } from './$types'
 	import Spinner from '#lib/Spinner.svelte'
+	import { onMount } from 'svelte'
+	import { pageSearch } from '#lib/worker-search.ts'
 	import { getNavigatingStore } from '#lib/functions/legacy-app-stores.ts'
 	import { VECTOR_INDEX, SEARCH_DATA } from '$app/env/public'
 	import '@find-sign/core/app.css'
@@ -8,6 +10,9 @@
 	export let data: LayoutData
 
 	const navigating = getNavigatingStore()
+
+	// get the service worker ready (or tidy it away if it is switched off) now, so it is ready by the first search
+	onMount(() => pageSearch.start())
 
 	const preconnectOrigin = [...new Set([
     VECTOR_INDEX,
