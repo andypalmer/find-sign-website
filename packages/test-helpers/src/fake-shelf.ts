@@ -14,4 +14,12 @@ export class FakeShelf implements IRememberFilesByName {
   async remember (name: string, bytes: Uint8Array): Promise<void> {
     this.files.set(name, bytes)
   }
+
+  async names (): Promise<string[]> {
+    return [...this.files.keys()]
+  }
+
+  async forget (name: string): Promise<void> {
+    this.files.delete(name)
+  }
 }

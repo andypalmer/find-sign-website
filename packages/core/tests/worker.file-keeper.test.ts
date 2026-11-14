@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { FakeDataServer } from '@find-sign/test-helpers/fake-data-server.ts'
 import { FakeShelf } from '@find-sign/test-helpers/fake-shelf.ts'
+import { FakeClock } from '@find-sign/test-helpers/fake-clock.ts'
 import { FileKeeper } from '../src/worker/file-keeper.ts'
 import { ManifestUnreadable } from '../src/worker/manifest-reader.ts'
 
@@ -311,5 +312,127 @@ describe('the file keeper, following the manifest to the indexes', () => {
     server.set(manifestUrl, { version: 9, indexes: {} })
 
     await expect(keeperOn(server).keeper.currentIndexes()).rejects.toThrow(ManifestUnreadable)
+  })
+})
+
+describe('the file keeper, tidying up files that are out of date', () => {
+  const manifestUrl = `${base}/manifest.json`
+  const indexOne = { shardCount: 1, shards: ['shard-0.aaaaaaaaaa.json'], scans: ['scan-0.bbbbbbbbbb.json'], vectors: [] as string[] }
+  const indexTwo = { ...indexOne, shards: ['shard-0.cccccccccc.json'] }
+  const oldShard = 'shard-0.aaaaaaaaaa.json'
+  const sharedScan = 'scan-0.bbbbbbbbbb.json'
+
+  function publish (server: FakeDataServer, indexName: string, contents: typeof indexOne) {
+    const name = `index-${indexName}.${contents.shards[0].slice(8, 18)}.json`
+    server.set(`${base}/${name}`, contents)
+    for (const file of [...contents.shards, ...contents.scans]) server.set(`${base}/${file}`, `bytes of ${file}`)
+    server.set(manifestUrl, { version: 2, indexes: { [indexName]: name } })
+  }
+
+  /** a keeper that has fetched the old shard, then the build moves on to indexTwo, which no longer uses it */
+  async function keeperAfterTheBuildMovesOn () {
+    const server = new FakeDataServer()
+    const clock = new FakeClock()
+    const shelf = new FakeShelf()
+    const keeperFor = () => new FileKeeper((url, init) => server.fetch(url, init), shelf, base, { clock })
+    const keeper = keeperFor()
+    publish(server, 'alpha', indexOne)
+    await keeper.currentIndexes()
+    await keeper.fileNamed(oldShard)
+    publish(server, 'alpha', indexTwo)
+    server.requests = []
+    const timesFetched = () => server.requests.filter(r => r.path.endsWith(oldShard)).length
+    return { server, clock, shelf, keeper, keeperFor, timesFetched }
+  }
+
+  /** whether the keeper still has the file, found by asking for it and seeing if it had to go to the server */
+  async function stillKept (keeper: FileKeeper, timesFetched: () => number) {
+    const before = timesFetched()
+    await keeper.fileNamed(oldShard)
+    return timesFetched() === before
+  }
+
+  it('keeps a file that is out of date until the grace period has passed', async () => {
+    const { keeper, clock, timesFetched } = await keeperAfterTheBuildMovesOn()
+    await keeper.tidy()
+    clock.passDays(29)
+
+    expect(await keeper.tidy()).toEqual([])
+    expect(await stillKept(keeper, timesFetched)).toBe(true)
+  })
+
+  it('drops it once the grace period has passed, and says so', async () => {
+    const { keeper, clock, timesFetched } = await keeperAfterTheBuildMovesOn()
+    await keeper.tidy()
+    clock.passDays(31)
+
+    const dropped = await keeper.tidy()
+    expect(dropped).toContain(oldShard)
+    expect(dropped).not.toContain(sharedScan) // both builds use it, so it is still current
+    expect(await stillKept(keeper, timesFetched)).toBe(false)
+  })
+
+  it('counts the grace period from when it first noticed the file was out of date, not from when it was fetched', async () => {
+    const { keeper, clock } = await keeperAfterTheBuildMovesOn()
+    clock.passDays(100)
+    expect(await keeper.tidy()).toEqual([])
+    clock.passDays(29)
+    expect(await keeper.tidy()).toEqual([])
+    clock.passDays(2)
+
+    expect(await keeper.tidy()).toContain(oldShard)
+  })
+
+  it('never drops a file the current manifests mention, however long ago it was fetched', async () => {
+    const { keeper, clock, server, timesFetched } = await keeperAfterTheBuildMovesOn()
+    publish(server, 'alpha', indexOne)
+    await keeper.tidy()
+    clock.passDays(200)
+
+    expect(await keeper.tidy()).toEqual([])
+    expect(await stillKept(keeper, timesFetched)).toBe(true)
+  })
+
+  it('starts the count again if a file becomes current and then goes out of date a second time', async () => {
+    const { keeper, clock, server, timesFetched } = await keeperAfterTheBuildMovesOn()
+    await keeper.tidy()
+    clock.passDays(20)
+    publish(server, 'alpha', indexOne)
+    await keeper.tidy()
+    publish(server, 'alpha', indexTwo)
+    await keeper.tidy()
+    clock.passDays(20)
+
+    expect(await keeper.tidy()).toEqual([])
+    expect(await stillKept(keeper, timesFetched)).toBe(true)
+  })
+
+  it('remembers when it noticed even after the worker has been stopped and started again', async () => {
+    const { keeper, keeperFor, clock } = await keeperAfterTheBuildMovesOn()
+    await keeper.tidy()
+    clock.passDays(31)
+
+    expect(await keeperFor().tidy()).toContain(oldShard)
+  })
+
+  it('keeps the manifest and its own notes, which no manifest mentions', async () => {
+    const { keeper, clock, shelf } = await keeperAfterTheBuildMovesOn()
+    await keeper.manifest()
+    await keeper.tidy()
+    clock.passDays(400)
+    await keeper.tidy()
+
+    expect(await shelf.names()).toEqual(expect.arrayContaining(['manifest.json']))
+    expect(await keeper.manifest()).toBeTruthy()
+  })
+
+  it('drops nothing when it cannot read the manifest, because then it cannot tell what is current', async () => {
+    const { keeper, clock, server, timesFetched } = await keeperAfterTheBuildMovesOn()
+    await keeper.tidy()
+    clock.passDays(400)
+    server.set(manifestUrl, { version: 9, indexes: {} })
+
+    await expect(keeper.tidy()).rejects.toThrow(ManifestUnreadable)
+    expect(await stillKept(keeper, timesFetched)).toBe(true)
   })
 })

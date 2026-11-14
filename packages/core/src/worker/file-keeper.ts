@@ -11,7 +11,18 @@ export interface IRememberFilesByName {
   /** the bytes kept under this name, or undefined if there are none */
   recall (name: string): Promise<Uint8Array | undefined>
   remember (name: string, bytes: Uint8Array): Promise<void>
+  /** the name of everything on the shelf */
+  names (): Promise<string[]>
+  /** throw one file away; nothing happens if it isn't there */
+  forget (name: string): Promise<void>
 }
+
+/** something that can say what time it is, in milliseconds */
+export interface IReadTheTime {
+  now (): number
+}
+
+const oneDay = 24 * 60 * 60 * 1000
 
 /** something that can be asked for an index file by its name */
 export interface IHandOverIndexFiles {
@@ -20,11 +31,17 @@ export interface IHandOverIndexFiles {
   manifest (): Promise<Uint8Array>
   /** what each index is made of right now, by index name */
   currentIndexes (): Promise<Record<string, IndexManifest>>
+  /** throw away files that have been out of date for longer than the grace period; says which it threw away */
+  tidy (): Promise<string[]>
 }
 
 const manifestName = 'manifest.json'
 /** the shelf also holds the server's tag for the manifest we have, so a restarted worker can still ask "is this still the newest?" */
 const manifestTagName = 'manifest.json.tag'
+/** where the keeper writes down when it first noticed each file was out of date */
+const noticesName = 'keeper-notices.json'
+/** files on the shelf that are the keeper's own, not index files, so they are never tidied away */
+const ownFiles = new Set([manifestName, manifestTagName, noticesName])
 const decode = (bytes: Uint8Array | undefined) => bytes ? new TextDecoder().decode(bytes) : ''
 
 export class FileKeeper implements IHandOverIndexFiles {
@@ -34,12 +51,20 @@ export class FileKeeper implements IHandOverIndexFiles {
   private manifestCheck: Promise<Uint8Array> | undefined
 
   /** `baseUrl` is the folder on the data server that the index files live in */
+  private reader: IReadManifests
+  private clock: IReadTheTime
+  private graceMs: number
+
   constructor (
     private fetchFile: FetchAFile,
     private shelf: IRememberFilesByName,
     private baseUrl: string,
-    private reader: IReadManifests = new ManifestReader()
-  ) {}
+    options: { reader?: IReadManifests, clock?: IReadTheTime, graceMs?: number } = {}
+  ) {
+    this.reader = options.reader ?? new ManifestReader()
+    this.clock = options.clock ?? { now: () => Date.now() }
+    this.graceMs = options.graceMs ?? 30 * oneDay
+  }
 
   /**
    * Asks the top manifest which index manifests are current. An index manifest never changes under its name,
@@ -47,11 +72,57 @@ export class FileKeeper implements IHandOverIndexFiles {
    * index costs one small file, not eleven.
    */
   async currentIndexes (): Promise<Record<string, IndexManifest>> {
+    return (await this.currentManifests()).indexes
+  }
+
+  /** the top manifest's index manifest names, and what each of those says */
+  private async currentManifests () {
     const top = this.reader.readTop(await this.manifest())
     const indexes = await Promise.all(Object.entries(top.indexes).map(async ([indexName, manifestFile]) => {
       return [indexName, this.reader.readIndex(await this.fileNamed(manifestFile))] as const
     }))
-    return Object.fromEntries(indexes)
+    return { top, indexes: Object.fromEntries(indexes) }
+  }
+
+  /**
+   * Throws away kept files that no current manifest mentions and that we first noticed were out of date more
+   * than the grace period ago. A visitor part-way through a session may still want a file the newest build
+   * has dropped, so we wait. We write down when we first noticed, so the wait survives a restart. If we
+   * cannot read the manifest we cannot tell what is current, so we throw nothing away.
+   * (A file fetched at the very moment of a tidy is safe: the grace period is days, not moments.)
+   */
+  async tidy (): Promise<string[]> {
+    const { top, indexes } = await this.currentManifests()
+    const current = new Set<string>(Object.values(top.indexes))
+    for (const index of Object.values(indexes)) for (const name of this.reader.fileNamesIn(index)) current.add(name)
+
+    const noticedAt = await this.readNotices()
+    const now = this.clock.now()
+    const stillOutOfDate: Record<string, number> = {}
+    const dropped: string[] = []
+    for (const name of await this.shelf.names()) {
+      if (current.has(name) || ownFiles.has(name)) continue
+      const since = noticedAt[name] ?? now
+      if (now - since > this.graceMs) {
+        await this.shelf.forget(name)
+        dropped.push(name)
+      } else {
+        stillOutOfDate[name] = since
+      }
+    }
+    await this.shelf.remember(noticesName, new TextEncoder().encode(JSON.stringify(stillOutOfDate)))
+    return dropped
+  }
+
+  /** when each out-of-date file was first noticed, as written down by an earlier tidy */
+  private async readNotices (): Promise<Record<string, number>> {
+    const written = await this.shelf.recall(noticesName)
+    if (!written) return {}
+    try {
+      return JSON.parse(decode(written))
+    } catch {
+      return {} // unreadable notes only mean the wait starts again
+    }
   }
 
   fileNamed (name: string): Promise<Uint8Array> {
