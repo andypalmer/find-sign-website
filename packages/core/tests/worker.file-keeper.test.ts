@@ -210,4 +210,38 @@ describe('the file keeper, asked for the manifest', () => {
 
     expect(text(await keeper.manifest())).toBe('{"build":1}')
   })
+
+  it('hands out the manifest it holds when the network is down, because an older manifest still points at real files', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"build":1}' })
+    await keeper.manifest()
+    server.failures.set(manifestUrl, 'network')
+
+    expect(text(await keeper.manifest())).toBe('{"build":1}')
+  })
+
+  it('does the same when the server answers with an error', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"build":1}' })
+    await keeper.manifest()
+    server.failures.set(manifestUrl, 503)
+
+    expect(text(await keeper.manifest())).toBe('{"build":1}')
+  })
+
+  it('has nothing to fall back on if it never held a manifest, so it fails', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"build":1}' })
+    server.failures.set(manifestUrl, 'network')
+
+    await expect(keeper.manifest()).rejects.toThrow()
+  })
+
+  it('goes back to the newest manifest once the server is reachable again', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"build":1}' })
+    await keeper.manifest()
+    server.failures.set(manifestUrl, 'network')
+    await keeper.manifest()
+    server.failures.delete(manifestUrl)
+    server.set(manifestUrl, '{"build":2}')
+
+    expect(text(await keeper.manifest())).toBe('{"build":2}')
+  })
 })

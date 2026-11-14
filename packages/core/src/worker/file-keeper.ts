@@ -48,6 +48,7 @@ export class FileKeeper implements IHandOverIndexFiles {
   /**
    * The manifest is the one file that changes, so it is never served without asking the server. We say
    * which version we hold; the server either says "still the newest" (nothing to download) or sends the new one.
+   * If the server can't be reached we hand out the copy we hold: it may be behind, but it only points at real files.
    * (Don't ask fileNamed for it: that would hand out the kept copy for ever.)
    */
   manifest (): Promise<Uint8Array> {
@@ -63,12 +64,22 @@ export class FileKeeper implements IHandOverIndexFiles {
   private async askAboutTheManifest (): Promise<Uint8Array> {
     const kept = await this.shelf.recall(manifestName)
     const keptTag = decode(await this.shelf.recall(manifestTagName))
-    const response = await this.fetchFile(`${this.baseUrl}/${manifestName}`, {
-      cache: 'no-cache',
-      headers: kept && keptTag ? { 'If-None-Match': keptTag } : undefined
-    })
+    let response: Response
+    try {
+      response = await this.fetchFile(`${this.baseUrl}/${manifestName}`, {
+        cache: 'no-cache',
+        headers: kept && keptTag ? { 'If-None-Match': keptTag } : undefined
+      })
+    } catch (error) {
+      // can't reach the server. Files are only ever added, so an older manifest still points at real files
+      if (kept) return kept
+      throw error
+    }
     if (response.status === 304 && kept) return kept
-    if (!response.ok) throw new Error(`could not fetch ${manifestName}: status ${response.status}`)
+    if (!response.ok) {
+      if (kept) return kept // the same reasoning: a server in trouble is no reason to stop searching
+      throw new Error(`could not fetch ${manifestName}: status ${response.status}`)
+    }
 
     const bytes = new Uint8Array(await response.arrayBuffer())
     await this.shelf.remember(manifestName, bytes)
