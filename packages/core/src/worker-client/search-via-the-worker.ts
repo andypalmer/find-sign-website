@@ -1,5 +1,8 @@
-// The page's search, which asks the service worker first and uses today's direct search when the worker can't
-// answer. What to do about each way the worker can fail is the table in docs/service-worker-messages.md.
+// The page's search, which asks the service worker first and uses today's direct search whenever the worker can't
+// answer. If the direct search fails too, its own problem is what the page shows, as it always has. We don't show the
+// worker's problem instead, even for "offline": the browser can't tell a refused request (a CORS error, a blocked
+// header) from a dead network, so "offline" from the worker may only mean the worker's own requests were refused,
+// and the direct search, which asks for different things, may work. See docs/service-worker-messages.md.
 import type { SearchResponse } from '#lib/search/search-engine.ts'
 import { currentProtocol } from '#lib/worker/letters.ts'
 import { WorkerDidNotAnswer, WorkerRefused, type IAskTheWorker } from './messenger.ts'
@@ -64,8 +67,7 @@ export class SearchViaTheWorker implements ISearchForSigns {
     if (options.signal?.aborted) throw new DOMException('The search was cancelled', 'AbortError')
 
     if (error instanceof WorkerRefused) {
-      // a problem the page shows, as it does today: a direct search would meet the same problem
-      if (error.reason === 'no-network-and-not-kept' || error.reason === 'index-changed-too-often' || error.reason === 'cancelled') throw error
+      if (error.reason === 'cancelled') throw error
       // a worker that has no such desk or question is an old one: leave it alone for the rest of the page
       if (error.reason === 'no-such-actor' || error.reason === 'no-such-question') this.usable = Promise.resolve(false)
       this.log(`the worker couldn't search (${error.reason}: ${error.message}), so we searched without it`)

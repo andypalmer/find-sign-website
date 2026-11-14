@@ -71,8 +71,8 @@ never for code to read.
 | `no-such-actor` / `no-such-question` | the letter names a desk or question the worker doesn't have, or is written in a protocol version the worker doesn't know | use the fallback for this question, and ask the worker to update |
 | `bad-details` | the fields were the wrong shape | a bug: log it, use the fallback |
 | `cancelled` | the page said never-mind | nothing |
-| `no-network-and-not-kept` | the worker needed a file it hasn't kept and can't fetch it | show the same "offline" notice the site shows today |
-| `index-changed-too-often` | the index was rebuilt mid-question again and again (today's `OutdatedError` retry gave up) | show an error; same as today |
+| `no-network-and-not-kept` | the worker needed a file it hasn't kept and can't fetch it. (A request the browser refuses, such as a CORS error, looks the same as a dead network, so this may not be a real outage) | use the fallback; if that fails too, show the same "offline" notice the site shows today |
+| `index-changed-too-often` | the index was rebuilt mid-question again and again (today's `OutdatedError` retry gave up) | use the fallback; if that fails too, show an error, same as today |
 | `unexpected` | anything else | log it, use the fallback once |
 
 A sign that doesn't exist is **not** a failure. It is an ordinary answer (`found: false`), because the page
@@ -168,7 +168,9 @@ case). Anything else, including not setting it, is off, so a typo never turns it
 - **First visit:** the worker has to be installed first. A search waits for it for at most four seconds, then
   uses the direct search; the worker carries on installing for next time.
 - **Always:** the server's own render never uses the worker (only a browser has one). Whenever the worker can't
-  answer, the page falls back to the direct search, except for the two problems the table above says to show.
+  answer, the page falls back to the direct search. If that fails too, its own problem is what shows, as it
+  always has. The page doesn't show the worker's problem instead, because a refused request looks the same as
+  being offline.
 
 ## Decided here, and what we left out
 

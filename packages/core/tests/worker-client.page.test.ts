@@ -217,11 +217,11 @@ describe('the page\'s search, with the service worker switched on', () => {
     expect(fallback).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the problem the worker reports when the network is down and nothing is kept, rather than searching directly', async () => {
-    const desks = { 'front-desk': new FrontDesk('b'), 'search-desk': { answer: async () => { throw new DeskRefusal('no-network-and-not-kept', 'offline') } } as IAnswerLetters }
+  it('uses the direct search when the worker can\'t reach the data server, since a request the browser refuses (a CORS error, say) looks just like being offline', async () => {
+    const desks = { 'front-desk': new FrontDesk('b'), 'search-desk': { answer: async () => { throw new DeskRefusal('no-network-and-not-kept', 'Failed to fetch') } } as IAnswerLetters }
     const { search, fallback } = pageSearchWith({}, new PretendContainer(address => new PretendRegistration(null, null, workerAnswering(desks, address))))
-    expect((await settled(search.search('cat', 0, 10))).error).toMatchObject({ reason: 'no-network-and-not-kept' })
-    expect(fallback).not.toHaveBeenCalled()
+    expect((await search.search('cat', 0, 10)).results[0].id).toBe('from-the-fallback')
+    expect(fallback).toHaveBeenCalledTimes(1)
   })
 
   it('uses the direct search when the browser has no service workers to give', async () => {

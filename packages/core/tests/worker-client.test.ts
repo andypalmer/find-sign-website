@@ -233,13 +233,25 @@ describe('the page\'s search, asking the worker', () => {
     expect(searchLetters(letters)).toHaveLength(1)
   })
 
-  it.each<[FailureReason]>([['no-network-and-not-kept'], ['index-changed-too-often']])('does not use the fallback when the worker says %s, because the page shows that problem', async (reason) => {
-    const search = new ScriptedDesk(() => { throw new DeskRefusal(reason, 'that problem') })
+  it.each<[FailureReason]>([['no-network-and-not-kept'], ['index-changed-too-often']])('uses the fallback for this search when the worker says %s, because the direct search may still work, and still asks the worker next time', async (reason) => {
+    let first = true
+    const search = new ScriptedDesk(async (ask, details, helpers) => {
+      if (first) { first = false; throw new DeskRefusal(reason, 'that problem') }
+      return await new SearchDesk(seams).answer(ask, details, helpers)
+    })
     const { page, fallback } = pageWith({ 'front-desk': new FrontDesk('b'), 'search-desk': search })
+    expect((await page.search('cat', 0, 10)).results[0].id).toBe('from-the-fallback')
+    expect((await page.search('cat', 0, 10)).results[0].id).toBe('cat')
+    expect(fallback).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the direct search\'s own problem, not the worker\'s, when the direct search fails too (the network really is down)', async () => {
+    const search = new ScriptedDesk(() => { throw new DeskRefusal('no-network-and-not-kept', 'offline') })
+    const { worker } = workerWith({ 'front-desk': new FrontDesk('b'), 'search-desk': search })
+    const page = new SearchViaTheWorker(new Messenger(worker), async () => { throw new Error('the data server is not answering') }, { log: () => {} })
     const error = await refusal(page.search('cat', 0, 10))
-    expect(error).toBeInstanceOf(WorkerRefused)
-    expect(error).toMatchObject({ reason })
-    expect(fallback).not.toHaveBeenCalled()
+    expect(error).not.toBeInstanceOf(WorkerRefused)
+    expect(error!.message).toBe('the data server is not answering')
   })
 
   it('is cancelled, and does not use the fallback, when the caller cancels', async () => {
