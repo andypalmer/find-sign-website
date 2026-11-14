@@ -1,6 +1,7 @@
 // The file keeper: the worker's helper that hands out index files. It fetches a file once, puts it on
 // a shelf, and from then on hands it out from the shelf. (Later rounds teach it to check the manifest
 // and to clear the shelf.)
+import { ManifestReader, type IndexManifest, type IReadManifests } from './manifest-reader.ts'
 
 /** asks the network for a file; the real worker passes `fetch` */
 export type FetchAFile = (url: string, init?: { cache?: RequestCache, headers?: Record<string, string> }) => Promise<Response>
@@ -17,6 +18,8 @@ export interface IHandOverIndexFiles {
   fileNamed (name: string): Promise<Uint8Array>
   /** the newest manifest.json; costs one small question to the server, and usually no download */
   manifest (): Promise<Uint8Array>
+  /** what each index is made of right now, by index name */
+  currentIndexes (): Promise<Record<string, IndexManifest>>
 }
 
 const manifestName = 'manifest.json'
@@ -31,7 +34,25 @@ export class FileKeeper implements IHandOverIndexFiles {
   private manifestCheck: Promise<Uint8Array> | undefined
 
   /** `baseUrl` is the folder on the data server that the index files live in */
-  constructor (private fetchFile: FetchAFile, private shelf: IRememberFilesByName, private baseUrl: string) {}
+  constructor (
+    private fetchFile: FetchAFile,
+    private shelf: IRememberFilesByName,
+    private baseUrl: string,
+    private reader: IReadManifests = new ManifestReader()
+  ) {}
+
+  /**
+   * Asks the top manifest which index manifests are current. An index manifest never changes under its name,
+   * so one we already hold costs nothing; only a new name is fetched. That is how a build that touches one
+   * index costs one small file, not eleven.
+   */
+  async currentIndexes (): Promise<Record<string, IndexManifest>> {
+    const top = this.reader.readTop(await this.manifest())
+    const indexes = await Promise.all(Object.entries(top.indexes).map(async ([indexName, manifestFile]) => {
+      return [indexName, this.reader.readIndex(await this.fileNamed(manifestFile))] as const
+    }))
+    return Object.fromEntries(indexes)
+  }
 
   fileNamed (name: string): Promise<Uint8Array> {
     const alreadyOnTheWay = this.onTheWay.get(name)

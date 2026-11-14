@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { FakeDataServer } from '@find-sign/test-helpers/fake-data-server.ts'
 import { FakeShelf } from '@find-sign/test-helpers/fake-shelf.ts'
 import { FileKeeper } from '../src/worker/file-keeper.ts'
+import { ManifestUnreadable } from '../src/worker/manifest-reader.ts'
 
 const base = 'https://data.example/index'
 const text = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
@@ -243,5 +244,72 @@ describe('the file keeper, asked for the manifest', () => {
     server.set(manifestUrl, '{"build":2}')
 
     expect(text(await keeper.manifest())).toBe('{"build":2}')
+  })
+})
+
+describe('the file keeper, following the manifest to the indexes', () => {
+  const manifestUrl = `${base}/manifest.json`
+  const alphaOne = { shardCount: 1, shards: ['shard-0.aaaaaaaaaa.json'], scans: ['scan-0.bbbbbbbbbb.json'], vectors: ['vectors-0.cccccccccc.lps'] }
+  const betaOne = { shardCount: 1, shards: ['shard-0.dddddddddd.json'], scans: ['scan-0.eeeeeeeeee.json'], vectors: [] as string[] }
+  const alphaTwo = { ...alphaOne, shards: ['shard-0.ffffffffff.json'] }
+
+  /** publish a build the way the pipeline will: the index manifests first, the top manifest last */
+  function publish (server: FakeDataServer, indexes: Record<string, { name: string, contents: object }>) {
+    for (const { name, contents } of Object.values(indexes)) server.set(`${base}/${name}`, contents)
+    server.set(manifestUrl, { version: 2, indexes: Object.fromEntries(Object.entries(indexes).map(([index, { name }]) => [index, name])) })
+  }
+  const names = (server: FakeDataServer) => server.requests.map(r => r.path.split('/').pop())
+
+  function keeperOn (server: FakeDataServer) {
+    const shelf = new FakeShelf()
+    return { shelf, keeper: new FileKeeper((url, init) => server.fetch(url, init), shelf, base) }
+  }
+
+  it('gives what each index is made of, as its own manifest says', async () => {
+    const server = new FakeDataServer()
+    publish(server, { alpha: { name: 'index-alpha.1111111111.json', contents: alphaOne }, beta: { name: 'index-beta.2222222222.json', contents: betaOne } })
+
+    expect(await keeperOn(server).keeper.currentIndexes()).toEqual({ alpha: alphaOne, beta: betaOne })
+  })
+
+  it('needs only the manifest check the next time, when no index has changed', async () => {
+    const server = new FakeDataServer()
+    publish(server, { alpha: { name: 'index-alpha.1111111111.json', contents: alphaOne }, beta: { name: 'index-beta.2222222222.json', contents: betaOne } })
+    const { keeper } = keeperOn(server)
+    await keeper.currentIndexes()
+    server.requests = []
+
+    await keeper.currentIndexes()
+
+    expect(names(server)).toEqual(['manifest.json'])
+  })
+
+  it('fetches only the index manifests whose names are new when a build changes one index', async () => {
+    const server = new FakeDataServer()
+    publish(server, { alpha: { name: 'index-alpha.1111111111.json', contents: alphaOne }, beta: { name: 'index-beta.2222222222.json', contents: betaOne } })
+    const { keeper } = keeperOn(server)
+    await keeper.currentIndexes()
+    publish(server, { alpha: { name: 'index-alpha.3333333333.json', contents: alphaTwo }, beta: { name: 'index-beta.2222222222.json', contents: betaOne } })
+    server.requests = []
+
+    expect(await keeper.currentIndexes()).toEqual({ alpha: alphaTwo, beta: betaOne })
+    expect(names(server).sort()).toEqual(['index-alpha.3333333333.json', 'manifest.json'])
+  })
+
+  it('works with no network at all once it has the manifests', async () => {
+    const server = new FakeDataServer()
+    publish(server, { alpha: { name: 'index-alpha.1111111111.json', contents: alphaOne } })
+    const { keeper } = keeperOn(server)
+    await keeper.currentIndexes()
+    server.failures.set(manifestUrl, 'network')
+
+    expect(await keeper.currentIndexes()).toEqual({ alpha: alphaOne })
+  })
+
+  it('passes on a manifest it cannot read, so the page can use its fallback', async () => {
+    const server = new FakeDataServer()
+    server.set(manifestUrl, { version: 9, indexes: {} })
+
+    await expect(keeperOn(server).keeper.currentIndexes()).rejects.toThrow(ManifestUnreadable)
   })
 })
