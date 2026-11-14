@@ -1,10 +1,6 @@
-import { loadIndex, OutdatedError, type LoadedOrthagonalEntry, type LoadedOrthagonalIndex } from '#lib/orthagonal/read.ts'
-import type { EncodedSearchDataEntry } from '#lib/orthagonal/types.ts'
+import { loadIndex } from '#lib/orthagonal/read.ts'
 import { lookup } from '#lib/search/loaded-precomputed-vectors.ts'
-import rank from '#lib/search/search-rank.ts'
-import { checkQueryContainsWords, compileQuery, compileQueryAST, parseQuery, queryPhrase } from '#lib/search/text.ts'
-import { normalizePhrase } from '@andypalmer/orthagonal'
-import normalizeWord from '#lib/orthagonal/normalize-word.ts'
+import { answerSearch, type SearchLibrary, type SearchResponse } from '#lib/search/search-engine.ts'
 import { fn } from '#lib/models/filename-codec.ts'
 import openGlobalVectors from './global-vectors'
 import type { WordVector } from './precomputed-vectors'
@@ -21,22 +17,8 @@ export const indexURLs = Object.fromEntries(availableIndexes.map(name => {
 // an object of index names, keyed by the url to that index, for reverse lookup
 export const indexByURL: { [url: string]: string } = Object.fromEntries(Object.entries(indexURLs).map(([name, url]) => [url, name]))
 
-// return type of search()
-export type SearchResponse = {
-  results: SearchResult[],
-  totalResults: number
-}
-
-// key-value object of all the loaded search indexes as a library collection
-export type SearchLibrary = {
-  [name: string]: LoadedOrthagonalIndex
-}
-
-// this is the type search() returns an array of in it's results property, and what
-// the Result.svelte component expects to present a search result
-export interface SearchResult extends EncodedSearchDataEntry {
-  index: string, // string search index name, e.g. "auslan-signbank"
-}
+// what the engine answers with, and the library it ranks: defined with the engine, which the service worker uses too
+export type { SearchLibrary, SearchResponse, SearchResult } from '#lib/search/search-engine.ts'
 
 // getSearchLibrary loads a collection of search libraries, possibly limited to a specific set
 // of indexes (e.g. auslan-signbank) and a specific set of columns (words, tags, link, id, author, etc)
@@ -52,89 +34,14 @@ export async function getSearchLibrary (limitLibraries: string[] | false = false
   return collection
 }
 
-// the rank of a sign whose English phrase is the query: well before any match by words, which start at 0, even
-// with the spread of its words and a naughty sign's penalty added
-const phraseMatch = -10
-
-// this is the main guts of the search engine, queries come in, and results come out
+// the page's search: the search engine, run on the v1 index files and the site's settings
 export async function search (query: string, start: number, length: number, forceReload = false): Promise<SearchResponse> {
-  // load the globalVector cache, this file contains a word-vector pairing for every word that
-  // exists in the search index (in the result titles/words lists)
-  let globalVectors: { [word: string]: WordVector } | undefined
-  if (/*!globalVectors &&*/ checkQueryContainsWords(query)) {
+  return await answerSearch(query, start, length, {
+    // this file contains a word-vector pairing for every word that exists in the search index
     // !!! should this have a cache expiry mechanism?
-    globalVectors = await openGlobalVectors(SEARCH_DATA + fn`${IndexName}/global-vectors.lps`)
-  }
-
-  // word lookup function which checks the local vectors cache before bothering to load rare words
-  // from the word vector library
-  const lookupLocal = async function (word: string) {
-    if (globalVectors && globalVectors[word]) return globalVectors[word]
-    return lookup(word)
-  }
-
-  // parse and compile the user's search query string in to a list of which data needs to be loaded
-  // and a rank function. requirements lists the columns of the dataset that are needed to run rank
-  // and rank accepts a search library entry and returns a distance number, with 0 being
-  // a perfect match
-  const compiledQuery = await compileQuery(query, async (word) => {
-    const normalized = normalizeWord(word)
-    const normalizedResult = await lookupLocal(normalized)
-    if (normalizedResult) {
-      return normalizedResult
-    } else if (normalized !== normalized.toLowerCase()) {
-      const lowerCasedResult = await lookupLocal(normalized.toLowerCase())
-      return lowerCasedResult
-    }
-  })
-
-  // a query of several words may be an English phrase a sign translates, which puts it first ("spill the beans"
-  // finds GOSSIP), as long as the query's tags and authors let it through
-  const phrased = queryPhrase(parseQuery(query))
-  const phrase = phrased && normalizePhrase(phrased.words.join(' '))
-  const passes = phrased && await compileQueryAST(phrased.filters)
-  const rankFn = phrased ? (entry: LoadedOrthagonalEntry) => {
-    if (passes!(entry) < Infinity && entry.englishPhrases?.some(english => normalizePhrase(english) === phrase)) return phraseMatch
-    return compiledQuery.rank(entry)
-  } : compiledQuery.rank
-
-  // load the search libraries, only bothering to fetch the columns necessary to run the rank function, and tags,
-  // which rank uses to put naughty signs after the others
-  const columns = [...new Set([...compiledQuery.requirements, 'tags', ...(phrased ? ['englishPhrases'] : [])])]
-  const library = await getSearchLibrary(false, columns, forceReload, globalVectors)
-
-  // sort the libraries in to one set of search results
-  const rankedIndex = rank(library, rankFn)
-
-  // slice out the results that are wanted (which page, basically)
-  const resultEntries = rankedIndex.entries.slice(start, start + length)
-  let results: SearchResult[] = []
-  try {
-    // load the full search result json for each result, so we have everything needed to present
-    // to user
-    results = await Promise.all(resultEntries.map(async entry => {
-      const loadedResult: SearchResult = {
-        ...await entry.load(),
-        index: indexByURL[entry.indexURL]
-      }
-      return loadedResult
-    }))
-  } catch (error) {
-    // if an OutdatedError throws, the currently loaded in memory search libraries are not up
-    // to date with the current version on the server, so the whole thing is re-run with
-    // forceReload set to true, causing the browser to fetch with cache invalidating headers
-    // In this spot, an OutdatedError is likely to throw because a search library was updated
-    // after the user loaded the library, but before the user loaded the search result json
-    if (error instanceof OutdatedError) {
-      if (forceReload === false) {
-        return await search(query, start, length, true)
-      }
-    }
-    throw error
-  }
-
-  return {
-    totalResults: rankedIndex.entries.length,
-    results
-  }
+    knownVectors: () => openGlobalVectors(SEARCH_DATA + fn`${IndexName}/global-vectors.lps`),
+    lookupVector: lookup,
+    loadLibrary: (columns, knownVectors, reload) => getSearchLibrary(false, columns, reload, knownVectors),
+    indexNameOf: entry => indexByURL[entry.indexURL]
+  }, forceReload)
 }

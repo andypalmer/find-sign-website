@@ -1,6 +1,6 @@
 // augments search-index with rank properties, and sorts by rank
 import type { LoadedOrthagonalEntry } from '#lib/orthagonal/read.ts'
-import type { SearchLibrary } from './search'
+import type { SearchLibrary } from './search-engine.ts'
 import { diversity as vectorDiversity } from '#lib/functions/vector-utilities.ts'
 import type { RankingFilterFunction } from './text'
 import { isNaughty } from './naughty'
