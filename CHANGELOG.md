@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/andypalmer/find-sign-website/compare/v1.0.0...v1.0.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **search:** a failed front page load no longer stops the server ([fd0b8fd](https://github.com/andypalmer/find-sign-website/commit/fd0b8fdfbacdadd28c26953cc8097bd9042abc30))
+
 ## 1.0.0 (2026-10-22)
 
 
