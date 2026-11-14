@@ -73,6 +73,39 @@ tie; the tests will say which searches it touches.)
 **A renamed sign moves.** Its id changes, so its shard does too: two shards change, and the old id is kept as an
 alias. A visitor who opens the old address finds the new id in the scan files' aliases, then the new shard.
 
+## The manifest files
+
+Both kinds of manifest are plain JSON made of lists of file names. The reader (`manifest-reader.ts` in the worker)
+needs nothing more than "which names are mentioned".
+
+`manifest.json`, the one file that can change:
+
+```json
+{
+  "version": 2,
+  "indexes": {
+    "alpha": "index-alpha.1a2b3c4d5e.json",
+    "beta": "index-beta.9f8e7d6c5b.json"
+  }
+}
+```
+
+An index's manifest (content-named, so it never changes):
+
+```json
+{
+  "shardCount": 1100,
+  "shards": ["shard-0.4f9a1c07be.json", "shard-1.c3d4e5f6a7.json"],
+  "scans": ["scan-0.77aa01cc22.json"],
+  "vectors": ["vectors-0.b1b2b3b4b5.lps"]
+}
+```
+
+Rules the reader holds us to: every name is one plain file name (letters, numbers, dots, dashes and underscores;
+no folders, no `..`, no addresses), because a name is put on the end of the data server's address. A missing
+list is an error, not an empty list, so a broken manifest can never make a visitor throw files away. A `version`
+the reader doesn't know is refused with a message that says so, and the page uses its fallback.
+
 ## What a build changes
 
 We re-cut the real 17,663 signs this way and then changed 30 of them (removed 5, edited 5, added 20):
