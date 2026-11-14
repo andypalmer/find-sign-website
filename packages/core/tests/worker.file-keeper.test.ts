@@ -183,4 +183,31 @@ describe('the file keeper, asked for the manifest', () => {
     expect(ifNoneMatch(server.requests[requestsSoFar])).toBeTruthy()
     expect(ifNoneMatch(server.requests[requestsSoFar])).not.toBe(ifNoneMatch(refresh))
   })
+
+  it('shares one check between askers who ask at the same time', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"build":1}' })
+
+    const answers = await Promise.all([keeper.manifest(), keeper.manifest(), keeper.manifest()])
+
+    expect(answers.map(text)).toEqual(['{"build":1}', '{"build":1}', '{"build":1}'])
+    expect(server.requests).toHaveLength(1)
+  })
+
+  it('checks afresh for an asker who comes after the last check has finished', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"build":1}' })
+    await keeper.manifest()
+    server.set(manifestUrl, '{"build":2}')
+
+    expect(text(await keeper.manifest())).toBe('{"build":2}')
+    expect(server.requests).toHaveLength(2)
+  })
+
+  it('does not share a failed check with later askers: they get to try again', async () => {
+    const { keeper, server } = keeperWith({ 'manifest.json': '{"build":1}' })
+    server.failures.set(manifestUrl, 'network')
+    await expect(Promise.all([keeper.manifest(), keeper.manifest()])).rejects.toThrow()
+    server.failures.delete(manifestUrl)
+
+    expect(text(await keeper.manifest())).toBe('{"build":1}')
+  })
 })

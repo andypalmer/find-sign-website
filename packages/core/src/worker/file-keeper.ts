@@ -27,6 +27,8 @@ const decode = (bytes: Uint8Array | undefined) => bytes ? new TextDecoder().deco
 export class FileKeeper implements IHandOverIndexFiles {
   /** files being fetched right now; anyone else who wants one joins the same fetch */
   private onTheWay = new Map<string, Promise<Uint8Array>>()
+  /** the manifest check that is under way, if there is one */
+  private manifestCheck: Promise<Uint8Array> | undefined
 
   /** `baseUrl` is the folder on the data server that the index files live in */
   constructor (private fetchFile: FetchAFile, private shelf: IRememberFilesByName, private baseUrl: string) {}
@@ -48,7 +50,17 @@ export class FileKeeper implements IHandOverIndexFiles {
    * which version we hold; the server either says "still the newest" (nothing to download) or sends the new one.
    * (Don't ask fileNamed for it: that would hand out the kept copy for ever.)
    */
-  async manifest (): Promise<Uint8Array> {
+  manifest (): Promise<Uint8Array> {
+    // askers who arrive while a check is under way join it, so a burst of searches makes one request
+    if (!this.manifestCheck) {
+      const clearIt = () => { this.manifestCheck = undefined }
+      this.manifestCheck = this.askAboutTheManifest()
+      this.manifestCheck.then(clearIt, clearIt)
+    }
+    return this.manifestCheck
+  }
+
+  private async askAboutTheManifest (): Promise<Uint8Array> {
     const kept = await this.shelf.recall(manifestName)
     const keptTag = decode(await this.shelf.recall(manifestTagName))
     const response = await this.fetchFile(`${this.baseUrl}/${manifestName}`, {
