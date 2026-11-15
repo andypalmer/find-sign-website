@@ -47,14 +47,12 @@ export interface IHandOverIndexFiles {
 type CurrentManifests = { manifestBytes: Uint8Array, top: TopManifest, indexes: Record<string, IndexManifest> }
 
 const manifestName = 'manifest.json'
-/** the shelf also holds the server's tag for the manifest we have, so a restarted worker can still ask "is this still the newest?" */
-const manifestTagName = 'manifest.json.tag'
 /** where the keeper writes down when it first noticed each file was out of date */
 const noticesName = 'keeper-notices.json'
 /** a copy of the manifest the keeper last finished tidying against, to tell when the manifest has changed */
 const tidiedAgainstName = 'keeper-tidied-against.json'
 /** files on the shelf that are the keeper's own, not index files, so they are never tidied away */
-const ownFiles = new Set([manifestName, manifestTagName, noticesName, tidiedAgainstName])
+const ownFiles = new Set([manifestName, noticesName, tidiedAgainstName])
 const decode = (bytes: Uint8Array | undefined) => bytes ? new TextDecoder().decode(bytes) : ''
 
 export class FileKeeper implements IHandOverIndexFiles {
@@ -184,9 +182,11 @@ export class FileKeeper implements IHandOverIndexFiles {
   }
 
   /**
-   * The manifest is the one file that changes, so it is never served without asking the server. We say
-   * which version we hold; the server either says "still the newest" (nothing to download) or sends the new one.
-   * If the server can't be reached we hand out the copy we hold: it may be behind, but it only points at real files.
+   * The manifest is the one file that changes, so it is never served without asking the server. We tell the browser
+   * to check ("no-cache"), and the browser does the checking itself with its own copy, so an unchanged manifest costs
+   * the server a few hundred bytes and costs us nothing. We send no headers of our own: a header such as If-None-Match,
+   * sent to another site, makes the browser ask that site's permission first (a "preflight"), which some data servers
+   * refuse. If the server can't be reached we hand out the copy we hold: it may be behind, but it only points at real files.
    * (Don't ask fileNamed for it: that would hand out the kept copy for ever.)
    */
   manifest (): Promise<Uint8Array> {
@@ -201,19 +201,15 @@ export class FileKeeper implements IHandOverIndexFiles {
 
   private async askAboutTheManifest (): Promise<Uint8Array> {
     const kept = await this.shelf.recall(manifestName)
-    const keptTag = decode(await this.shelf.recall(manifestTagName))
     let response: Response
     try {
-      response = await this.fetchFile(`${this.baseUrl}/${manifestName}`, {
-        cache: 'no-cache',
-        headers: kept && keptTag ? { 'If-None-Match': keptTag } : undefined
-      })
+      response = await this.fetchFile(`${this.baseUrl}/${manifestName}`, { cache: 'no-cache' })
     } catch (error) {
       // can't reach the server. Files are only ever added, so an older manifest still points at real files
       if (kept) return kept
       throw error
     }
-    if (response.status === 304 && kept) return kept
+    if (response.status === 304 && kept) return kept // (the browser answers this itself, but something else along the way might not)
     if (!response.ok) {
       if (kept) return kept // the same reasoning: a server in trouble is no reason to stop searching
       throw new Error(`could not fetch ${manifestName}: status ${response.status}`)
@@ -221,8 +217,6 @@ export class FileKeeper implements IHandOverIndexFiles {
 
     const bytes = new Uint8Array(await response.arrayBuffer())
     await this.shelf.remember(manifestName, bytes)
-    // no tag sent means nothing to check against next time; write an empty one so an old tag is not left behind
-    await this.shelf.remember(manifestTagName, new TextEncoder().encode(response.headers.get('etag') ?? ''))
     return bytes
   }
 

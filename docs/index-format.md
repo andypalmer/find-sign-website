@@ -36,8 +36,9 @@ handed a file that doesn't match its name. Nothing inside a file says which buil
 **Keep one small file that can change: `manifest.json`.** It lists, for each index, the name of that index's
 own manifest, the names of the word vector files that every index shares, and the format version. Each
 index's manifest (itself content-named) lists its shards and its scan files. A visitor asks for `manifest.json`
-(a conditional request, usually a `304` of a few hundred bytes), and if it hasn't changed, nothing else is
-needed. If it has, they fetch only the index manifests whose names changed, and from those only the files whose
+(the browser checks its own copy with the data server, which usually answers `304` in a few hundred bytes; we
+send no headers of our own, so the data server never has to give permission first), and if it hasn't changed,
+nothing else is needed. If it has, they fetch only the index manifests whose names changed, and from those only the files whose
 names are new. One request replaces today's 11.
 
 **Two kinds of file in each index, because they are used in two ways.**
