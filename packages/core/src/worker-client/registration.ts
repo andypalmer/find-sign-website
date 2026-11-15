@@ -18,6 +18,8 @@ export interface IRegistrationLike {
   addEventListener (type: 'updatefound', listener: () => void): void
   removeEventListener (type: 'updatefound', listener: () => void): void
   unregister (): Promise<boolean>
+  /** asks the browser to look for a newer copy of the worker's script, and install it if there is one */
+  update (): Promise<unknown>
 }
 
 export interface IServiceWorkerContainerLike {
@@ -72,11 +74,23 @@ export async function registerTheWorker (container: IServiceWorkerContainerLike,
   })
 }
 
+/** the registrations that have a worker of ours, for this script name: any of their workers may be the one we want */
+async function registrationsOfOurs (container: IServiceWorkerContainerLike, scriptName: string): Promise<IRegistrationLike[]> {
+  return (await container.getRegistrations()).filter(registration =>
+    [registration.active, registration.waiting, registration.installing].some(worker => worker && new URL(worker.scriptURL).pathname.endsWith(`/${scriptName}`)))
+}
+
 /** unregisters every worker of ours, for when the service worker has been switched off after being on. Says how many */
 export async function unregisterTheWorker (container: IServiceWorkerContainerLike, scriptName = 'service-worker.js'): Promise<number> {
-  const ours = (await container.getRegistrations()).filter(registration =>
-    [registration.active, registration.waiting, registration.installing].some(worker => worker && new URL(worker.scriptURL).pathname.endsWith(`/${scriptName}`)))
+  const ours = await registrationsOfOurs(container, scriptName)
   await Promise.all(ours.map(registration => registration.unregister()))
+  return ours.length
+}
+
+/** asks the browser to look for a new worker for each registration of ours. Says how many it asked */
+export async function askBrowserForANewWorker (container: IServiceWorkerContainerLike, scriptName = 'service-worker.js'): Promise<number> {
+  const ours = await registrationsOfOurs(container, scriptName)
+  await Promise.all(ours.map(registration => registration.update()))
   return ours.length
 }
 

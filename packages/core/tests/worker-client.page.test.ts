@@ -4,7 +4,7 @@ import { FrontDesk, SearchDesk } from '../src/worker/desks.ts'
 import { DeskRefusal, type IAnswerLetters } from '../src/worker/letters.ts'
 import { Switchboard } from '../src/worker/switchboard.ts'
 import { settingsFromTheWorkersAddress, type WorkerSettings } from '../src/worker/worker-settings.ts'
-import { registerTheWorker, unregisterTheWorker, workerAsAPostbox, type IRegistrationLike, type IServiceWorkerContainerLike, type IWorkerLike } from '../src/worker-client/registration.ts'
+import { askBrowserForANewWorker, registerTheWorker, unregisterTheWorker, workerAsAPostbox, type IRegistrationLike, type IServiceWorkerContainerLike, type IWorkerLike } from '../src/worker-client/registration.ts'
 import { createPageSearch, serviceWorkerWanted } from '../src/worker-client/page-search.ts'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -24,10 +24,12 @@ class PretendWorker implements IWorkerLike {
 class PretendRegistration implements IRegistrationLike {
   private listeners: (() => void)[] = []
   unregistered = false
+  updated = false
   constructor (public installing: IWorkerLike | null = null, public waiting: IWorkerLike | null = null, public active: IWorkerLike | null = null) {}
   addEventListener (_type: 'updatefound', listener: () => void) { this.listeners.push(listener) }
   removeEventListener (_type: 'updatefound', listener: () => void) { this.listeners = this.listeners.filter(each => each !== listener) }
   async unregister () { this.unregistered = true; return true }
+  async update () { this.updated = true }
   updateFound () { for (const listener of [...this.listeners]) listener() }
 }
 
@@ -263,5 +265,37 @@ describe('the page\'s search, with the service worker switched off', () => {
     await sleep(5)
     expect((await search.search('cat', 0, 10)).results[0].id).toBe('from-the-fallback')
     expect(log).toHaveBeenCalled()
+  })
+})
+
+describe('asking the browser for a new worker', () => {
+  it('asks each registration of our worker script to update, and leaves other scripts alone', async () => {
+    const ours = new PretendRegistration(null, null, new PretendWorker('https://beta.example/service-worker.js?data=1', 'activated'))
+    const oursStillInstalling = new PretendRegistration(new PretendWorker('https://beta.example/service-worker.js?data=2'))
+    const other = new PretendRegistration(null, null, new PretendWorker('https://beta.example/other-worker.js', 'activated'))
+    const container = new PretendContainer()
+    container.existing = [ours, oursStillInstalling, other]
+    expect(await askBrowserForANewWorker(container)).toBe(2)
+    expect([ours.updated, oursStillInstalling.updated, other.updated]).toEqual([true, true, false])
+  })
+
+  it('says none when there is no worker of ours to update', async () => {
+    expect(await askBrowserForANewWorker(new PretendContainer())).toBe(0)
+  })
+
+  it('is asked by the page, once, when the worker we reached is out of date, and the page still searches directly', async () => {
+    const oldDesks = { 'front-desk': new FrontDesk('old', [7]), 'search-desk': new SearchDesk(seams) }
+    const registration = new PretendRegistration()
+    const container = new PretendContainer(address => {
+      registration.active = workerAnswering(oldDesks, address)
+      return registration
+    })
+    container.existing = [registration]
+    const { search, fallback } = pageSearchWith({}, container)
+    await search.search('cat', 0, 10)
+    await search.search('kitten', 0, 10)
+    await sleep(5)
+    expect(registration.updated).toBe(true)
+    expect(fallback).toHaveBeenCalledTimes(2)
   })
 })

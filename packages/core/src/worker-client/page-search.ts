@@ -3,7 +3,7 @@
 // from when it was on. The server never gets here: only the browser has service workers.
 import { addressForTheWorker, type WorkerSettings } from '#lib/worker/worker-settings.ts'
 import { Messenger, WorkerDidNotAnswer, type AskOptions, type IAskTheWorker } from './messenger.ts'
-import { registerTheWorker, unregisterTheWorker, workerAsAPostbox, type IServiceWorkerContainerLike, type IWorkerLike } from './registration.ts'
+import { askBrowserForANewWorker, registerTheWorker, unregisterTheWorker, workerAsAPostbox, type IServiceWorkerContainerLike, type IWorkerLike } from './registration.ts'
 import { SearchViaTheWorker, type ISearchForSigns } from './search-via-the-worker.ts'
 
 /** is the service worker switched on? Only a clear yes is a yes, so a typo never turns it on */
@@ -77,7 +77,13 @@ export function createPageSearch (options: PageSearchOptions): IPageSearch {
       return await messenger.ask<Answer>(to, ask, details, askOptions)
     }
   }
-  const search = new SearchViaTheWorker(worker, options.fallback, { log, helloTimeoutMs: options.silenceTimeoutMs })
+  // a worker that is older than this page is asked for a newer copy, once per page; this page still searches directly meanwhile
+  const onWorkerOutOfDate = () => {
+    askBrowserForANewWorker(container)
+      .then(() => log('the worker we reached is out of date, so we asked the browser to look for a new one'))
+      .catch(error => log(`couldn't ask the browser for a new worker: ${(error as Error).message}`))
+  }
+  const search = new SearchViaTheWorker(worker, options.fallback, { log, helloTimeoutMs: options.silenceTimeoutMs, onWorkerOutOfDate })
   return {
     start () { void getReady().catch(() => {}) },
     search: (query, start, length, searchOptions) => search.search(query, start, length, searchOptions)

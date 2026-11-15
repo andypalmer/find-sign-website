@@ -140,12 +140,13 @@ const library = { alpha: { entries: [entry('cat', [known.cat]), entry('kitten', 
 const seams: SearchSeams = { knownVectors: async () => known, lookupVector: async () => undefined, loadLibrary: async () => library, indexNameOf: () => 'alpha' }
 const direct: SearchResponse = { totalResults: 1, results: [{ index: 'alpha', id: 'from-the-fallback', title: 'X', body: '', words: [], media: [], tags: [] }] as any }
 
-function pageWith (desks: Record<string, IAnswerLetters>, options: { silenceTimeoutMs?: number, log?: (words: string) => void } = {}) {
+function pageWith (desks: Record<string, IAnswerLetters>, options: { silenceTimeoutMs?: number, log?: (words: string) => void, onWorkerOutOfDate?: () => void } = {}) {
   const { worker, letters } = workerWith(desks)
   const fallback = vi.fn(async () => direct)
   const log = options.log ?? vi.fn()
   const messenger = new Messenger(worker, { silenceTimeoutMs: options.silenceTimeoutMs ?? 1000 })
-  return { page: new SearchViaTheWorker(messenger, fallback, { log, helloTimeoutMs: options.silenceTimeoutMs ?? 1000 }), fallback, letters, log: log as ReturnType<typeof vi.fn> }
+  const page = new SearchViaTheWorker(messenger, fallback, { log, helloTimeoutMs: options.silenceTimeoutMs ?? 1000, onWorkerOutOfDate: options.onWorkerOutOfDate })
+  return { page, fallback, letters, log: log as ReturnType<typeof vi.fn> }
 }
 const workingDesks = () => ({ 'front-desk': new FrontDesk('test-build'), 'search-desk': new SearchDesk(seams) })
 const searchLetters = (letters: Letter[]) => letters.filter(letter => letter.ask === 'search')
@@ -324,3 +325,31 @@ describe('the page\'s search, when the worker is slow to say hello', () => {
   })
 })
 
+
+describe('the page\'s search, when the worker we reached is out of date', () => {
+  it('asks for a new worker once when the worker speaks no version we do, and searches directly every time', async () => {
+    const onWorkerOutOfDate = vi.fn()
+    const { page, fallback } = pageWith({ 'front-desk': new FrontDesk('old', [7]), 'search-desk': new SearchDesk(seams) }, { onWorkerOutOfDate })
+    await page.search('cat', 0, 10)
+    await page.search('kitten', 0, 10)
+    expect(onWorkerOutOfDate).toHaveBeenCalledTimes(1)
+    expect(fallback).toHaveBeenCalledTimes(2)
+  })
+
+  it('asks for a new worker once when the worker has no desk for searching, however many searches go by', async () => {
+    const onWorkerOutOfDate = vi.fn()
+    const { page, fallback } = pageWith({ 'front-desk': new FrontDesk('old') }, { onWorkerOutOfDate })
+    await page.search('cat', 0, 10)
+    await page.search('cat', 0, 10)
+    expect(onWorkerOutOfDate).toHaveBeenCalledTimes(1)
+    expect(fallback).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not ask for a new worker when the worker is only slow to answer', async () => {
+    const onWorkerOutOfDate = vi.fn()
+    const { page, fallback } = pageWith({ 'front-desk': new ScriptedDesk(() => sleep(200)), 'search-desk': new SearchDesk(seams) }, { silenceTimeoutMs: 30, onWorkerOutOfDate })
+    await page.search('cat', 0, 10)
+    expect(onWorkerOutOfDate).not.toHaveBeenCalled()
+    expect(fallback).toHaveBeenCalledTimes(1)
+  })
+})

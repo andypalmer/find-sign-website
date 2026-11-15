@@ -20,6 +20,9 @@ export interface ISearchForSigns {
 const looksLikeASearchResponse = (answer: unknown): answer is SearchResponse =>
   typeof answer === 'object' && answer !== null && typeof (answer as SearchResponse).totalResults === 'number' && Array.isArray((answer as SearchResponse).results)
 
+/** the worker answered that it has no such desk or question: it is an older build than the page expects */
+const isAnOldWorker = (error: unknown) => error instanceof WorkerRefused && (error.reason === 'no-such-actor' || error.reason === 'no-such-question')
+
 export class SearchViaTheWorker implements ISearchForSigns {
   private worker?: IAskTheWorker
   private fallback: ISearchForSigns['search']
@@ -29,9 +32,13 @@ export class SearchViaTheWorker implements ISearchForSigns {
   /** the hello: started once, and settles to whether the worker answered. It can still be pending when a search runs */
   private hello?: Promise<boolean>
   private helloGraceMs: number
+  private onWorkerOutOfDate?: () => void
+  /** whether we have already asked the browser for a new worker on this page: we ask at most once */
+  private askedForANewWorker = false
 
   /** `worker` is undefined when the browser has no service worker for us; `fallback` is the search to use then */
-  constructor (worker: IAskTheWorker | undefined, fallback: ISearchForSigns['search'], options: { speaks?: number[], log?: (words: string) => void, helloTimeoutMs?: number, helloGraceMs?: number } = {}) {
+  constructor (worker: IAskTheWorker | undefined, fallback: ISearchForSigns['search'], options: { speaks?: number[], log?: (words: string) => void, helloTimeoutMs?: number, helloGraceMs?: number, onWorkerOutOfDate?: () => void } = {}) {
+    this.onWorkerOutOfDate = options.onWorkerOutOfDate
     this.worker = worker
     this.fallback = fallback
     this.speaks = options.speaks ?? [currentProtocol]
@@ -63,12 +70,20 @@ export class SearchViaTheWorker implements ISearchForSigns {
         await this.worker!.ask('front-desk', 'hello', { speaks: this.speaks }, { silenceTimeoutMs: this.helloTimeoutMs })
         return true
       } catch (error) {
+        if (isAnOldWorker(error)) this.askForANewWorker()
         this.log(`the worker didn't say hello back, so we search without it on this page: ${(error as Error).message}`)
         return false
       }
     })()
     const grace = new Promise<boolean>(resolve => setTimeout(() => resolve(false), this.helloGraceMs))
     return Promise.race([this.hello, grace])
+  }
+
+  /** asks once per page for a newer worker: the browser may have one ready, and the next page will get it */
+  private askForANewWorker (): void {
+    if (this.askedForANewWorker) return
+    this.askedForANewWorker = true
+    this.onWorkerOutOfDate?.()
   }
 
   private async whatToDoAbout (error: unknown, query: string, start: number, length: number, options: SearchOptions): Promise<SearchResponse> {
@@ -78,7 +93,10 @@ export class SearchViaTheWorker implements ISearchForSigns {
     if (error instanceof WorkerRefused) {
       if (error.reason === 'cancelled') throw error
       // a worker that has no such desk or question is an old one: leave it alone for the rest of the page
-      if (error.reason === 'no-such-actor' || error.reason === 'no-such-question') this.hello = Promise.resolve(false)
+      if (isAnOldWorker(error)) {
+        this.hello = Promise.resolve(false)
+        this.askForANewWorker()
+      }
       this.log(`the worker couldn't search (${error.reason}: ${error.message}), so we searched without it`)
     } else if (error instanceof WorkerDidNotAnswer) {
       this.hello = Promise.resolve(false)
