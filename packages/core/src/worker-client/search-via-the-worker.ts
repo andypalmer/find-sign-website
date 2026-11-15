@@ -51,13 +51,27 @@ export class SearchViaTheWorker implements ISearchForSigns {
 
   async search (query: string, start: number, length: number, options: SearchOptions = {}): Promise<SearchResponse> {
     if (!this.worker || !(await this.workerIsReadyWithinGrace())) return await this.fallback(query, start, length, options)
+    const helloWeAsked = this.hello
     try {
       const answer = await this.worker.ask('search-desk', 'search', { query, start, length }, { signal: options.signal, onProgress: options.onProgress })
       if (!looksLikeASearchResponse(answer)) throw new WorkerRefused('unexpected', 'the worker\'s answer wasn\'t a search answer')
       return answer
     } catch (error) {
-      return await this.whatToDoAbout(error, query, start, length, options)
+      return await this.whatToDoAbout(error, query, start, length, options, helloWeAsked)
     }
+  }
+
+  /** the worker we were using has been replaced by a new release: forget its hello, so the next search says hello to the new one */
+  startingAgain (): void {
+    this.hello = undefined
+  }
+
+  /**
+   * Remembers that the worker isn't answering, but only for the hello that the failed search used. A search that was
+   * sent to a worker since replaced must not cancel the hello of the worker that replaced it.
+   */
+  private noAnswerFrom (helloWeAsked: Promise<boolean> | undefined): void {
+    if (this.hello === helloWeAsked) this.hello = Promise.resolve(false)
   }
 
   /**
@@ -86,7 +100,7 @@ export class SearchViaTheWorker implements ISearchForSigns {
     this.onWorkerOutOfDate?.()
   }
 
-  private async whatToDoAbout (error: unknown, query: string, start: number, length: number, options: SearchOptions): Promise<SearchResponse> {
+  private async whatToDoAbout (error: unknown, query: string, start: number, length: number, options: SearchOptions, helloWeAsked: Promise<boolean> | undefined): Promise<SearchResponse> {
     // the caller cancelled: that is not a failure to make up for
     if (options.signal?.aborted) throw new DOMException('The search was cancelled', 'AbortError')
 
@@ -94,12 +108,12 @@ export class SearchViaTheWorker implements ISearchForSigns {
       if (error.reason === 'cancelled') throw error
       // a worker that has no such desk or question is an old one: leave it alone for the rest of the page
       if (isAnOldWorker(error)) {
-        this.hello = Promise.resolve(false)
+        this.noAnswerFrom(helloWeAsked)
         this.askForANewWorker()
       }
       this.log(`the worker couldn't search (${error.reason}: ${error.message}), so we searched without it`)
     } else if (error instanceof WorkerDidNotAnswer) {
-      this.hello = Promise.resolve(false)
+      this.noAnswerFrom(helloWeAsked)
       this.log(`the worker stopped answering, so we search without it on this page: ${error.message}`)
     } else {
       this.log(`something went wrong asking the worker, so we searched without it: ${(error as Error)?.message}`)

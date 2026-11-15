@@ -56,11 +56,25 @@ export function createPageSearch (options: PageSearchOptions): IPageSearch {
 
   // registering is done once, in the background, and only the first search that needs it waits for it
   let ready: Promise<IAskTheWorker> | undefined
+  // the worker we are using. A new release replaces it: the old one hears nothing more, so we let go of it, and the
+  // next search finds the new one at the same address
+  let using: IWorkerLike | undefined
+  const watchForReplacement = (worker: IWorkerLike) => {
+    using = worker
+    worker.addEventListener('statechange', () => {
+      if (worker.state !== 'redundant' || using !== worker) return
+      using = undefined
+      ready = undefined
+      search.startingAgain()
+      log('the worker was replaced by a new release, so we look for the new one for the next search')
+    })
+  }
   const getReady = (): Promise<IAskTheWorker> => {
     ready ??= (async () => {
       const worker: IWorkerLike = await registerTheWorker(container, addressForTheWorker(options.scriptAddress, options.settings), {
         type: options.type, timeoutMs: options.registrationTimeoutMs, pageAddress: options.pageAddress
       })
+      watchForReplacement(worker)
       return new Messenger(workerAsAPostbox(worker), { silenceTimeoutMs: options.silenceTimeoutMs })
     })()
     ready.catch(error => log(`the service worker isn't ready, so we search without it on this page: ${(error as Error).message}`))

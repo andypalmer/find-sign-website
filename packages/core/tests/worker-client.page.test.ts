@@ -299,3 +299,61 @@ describe('asking the browser for a new worker', () => {
     expect(fallback).toHaveBeenCalledTimes(2)
   })
 })
+
+/** a search desk that answers every search with one sign, so a test can see which worker answered */
+const searchDeskSaying = (id: string): IAnswerLetters => ({ async answer () { return { totalResults: 1, results: [{ id }] } } })
+
+/**
+ * a worker that answers while it is active. Like a browser's replaced worker, it hears nothing once it is redundant;
+ * `muted` makes it go quiet on purpose, as if it were busy or on its way out.
+ */
+function activeWorkerAnswering (desks: Record<string, IAnswerLetters>, address: string): PretendWorker & { muted: boolean } {
+  const worker: PretendWorker & { muted: boolean } = Object.assign(new PretendWorker(new URL(address, 'https://beta.example/').href, 'activated', (message, transfer) => {
+    if (worker.state === 'redundant' || worker.muted) return
+    void new Switchboard(desks).receive(structuredClone(message), transfer[0] as MessagePort)
+  }), { muted: false })
+  return worker
+}
+
+describe('the page\'s search, when a new release replaces the worker it was using', () => {
+  /** a page whose registration starts with an old worker; `registration.active` is what the browser holds at our address */
+  function pageWithAnOldWorker () {
+    const registration = new PretendRegistration()
+    const container = new PretendContainer(scriptAddress => {
+      registration.active ??= activeWorkerAnswering({ 'front-desk': new FrontDesk('old'), 'search-desk': searchDeskSaying('from-the-old-worker') }, scriptAddress)
+      return registration
+    })
+    const page = pageSearchWith({ silenceTimeoutMs: 30 }, container)
+    return { ...page, registration }
+  }
+  const newWorkerAt = (address: string) => activeWorkerAnswering({ 'front-desk': new FrontDesk('new'), 'search-desk': searchDeskSaying('from-the-new-worker') }, address)
+
+  it('finds the new worker at the same address, and searches through it, once the one it was using is replaced', async () => {
+    const { search, fallback, registration } = pageWithAnOldWorker()
+    expect((await search.search('cat', 0, 10)).results[0].id).toBe('from-the-old-worker')
+    const oldWorker = registration.active as PretendWorker & { muted: boolean }
+
+    // the release takes over: the old worker is replaced and hears nothing more, and the new one is active at our address
+    registration.active = newWorkerAt(oldWorker.scriptURL)
+    oldWorker.become('redundant')
+
+    expect((await search.search('kitten', 0, 10)).results[0].id).toBe('from-the-new-worker')
+    expect(fallback).not.toHaveBeenCalled()
+  })
+
+  it('does not let a search that was waiting on the replaced worker cancel the new worker when it gives up', async () => {
+    const { search, fallback, registration } = pageWithAnOldWorker()
+    await search.search('cat', 0, 10)
+    const oldWorker = registration.active as PretendWorker & { muted: boolean }
+
+    oldWorker.muted = true
+    const waiting = search.search('kitten', 0, 10) // sent to the old worker, which now stays silent
+    await sleep(5)
+    registration.active = newWorkerAt(oldWorker.scriptURL)
+    oldWorker.become('redundant')
+
+    expect((await waiting).results).toBeDefined() // it gives up and searches directly
+    expect((await search.search('cat', 0, 10)).results[0].id).toBe('from-the-new-worker')
+    expect(fallback).toHaveBeenCalledTimes(1)
+  })
+})
