@@ -117,6 +117,26 @@ describe('the IndexedDB shelf, which a browser keeps between visits', () => {
   })
 })
 
+describe('the IndexedDB shelf, when the database is upgraded from elsewhere', () => {
+  it('lets another connection upgrade the database, and carries on working afterwards', async () => {
+    const browser = new FakeIndexedDb()
+    const shelf = new IndexedDbShelf(browser, 'find-sign-index')
+    await shelf.remember('a', bytesOf('kept'))
+
+    // a newer build of the site opens the same database at a higher version; we must not stand in its way
+    const upgrade = new Promise<string>(resolve => {
+      const request = browser.open('find-sign-index', 2)
+      request.onsuccess = () => { request.result.close(); resolve('upgraded') }
+      request.onblocked = () => resolve('blocked')
+    })
+
+    expect(await upgrade).toBe('upgraded')
+    expect(textOf(await shelf.recall('a'))).toBe('kept')
+    await shelf.remember('b', bytesOf('after the upgrade'))
+    expect([...await shelf.names()].sort()).toEqual(['a', 'b'])
+  })
+})
+
 describe('the file keeper on the IndexedDB shelf', () => {
   it('does not fetch a file again after the worker has been stopped and started again', async () => {
     const base = 'https://data.example/index'

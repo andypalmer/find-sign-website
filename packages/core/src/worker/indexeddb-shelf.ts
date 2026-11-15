@@ -69,8 +69,19 @@ export class IndexedDbShelf implements IRememberFilesByName {
     if (!this.database) {
       this.database = new Promise<IDBDatabase>((resolve, reject) => {
         const request = this.databases.open(this.databaseName)
-        request.onupgradeneeded = () => request.result.createObjectStore(drawerName)
-        request.onsuccess = () => resolve(request.result)
+        // a newer build may change the database's shape; if the drawer is already there, leave it be
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains(drawerName)) request.result.createObjectStore(drawerName)
+        }
+        request.onsuccess = () => {
+          const database = request.result
+          // another connection wants to upgrade the database: let go at once, or it waits on us. The next call reopens it.
+          database.onversionchange = () => {
+            database.close()
+            this.database = undefined
+          }
+          resolve(database)
+        }
         request.onerror = () => reject(request.error)
       })
       this.database.catch(() => { this.database = undefined })
