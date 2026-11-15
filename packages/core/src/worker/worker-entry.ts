@@ -11,6 +11,7 @@ import { KeptLibrary } from './kept-library.ts'
 import type { IAnswerLetters, IReceiveLetters, ReplyPort } from './letters.ts'
 import { Switchboard } from './switchboard.ts'
 import { sayingWhichLibrary } from '#lib/search/vector-lookup-errors.ts'
+import { checkedFetch } from '#lib/functions/checked-fetch.ts'
 import { indexFolderOf, settingsFromTheWorkersAddress } from './worker-settings.ts'
 
 /** the parts of the service worker's global that the worker uses; tests pass a pretend one */
@@ -66,7 +67,7 @@ function switchboardFor (scope: WorkerScope, workerBuild: string): IReceiveLette
     databaseName: `find-sign-index:${folder}`
   })
   const library = new KeptLibrary(keeper, { baseUrl: folder, indexes: settings.indexes })
-  const wordVectors = vectorLibrary(settings.vectorLibraryUrl.replace(/\/+$/, ''), { fetch: fetchOnItsOwn as typeof globalThis.fetch })
+  const wordVectors = vectorLibrary(settings.vectorLibraryUrl.replace(/\/+$/, ''), { fetch: checkedFetch(fetchOnItsOwn as typeof globalThis.fetch) })
   const desks: Record<string, IAnswerLetters> = {
     'front-desk': new FrontDesk(workerBuild),
     'search-desk': new SearchDesk(library.asSearchSeams(sayingWhichLibrary(settings.vectorLibraryUrl, wordVectors.lookup)))
