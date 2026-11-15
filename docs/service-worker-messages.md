@@ -151,7 +151,12 @@ updates when the browser next checks). So a page and a worker can disagree about
 - A worker that meets a protocol it doesn't know, or a question it doesn't have, always replies `failed`.
   It never stays silent, so the page never waits forever. (The page also stops waiting after a timeout
   and falls back.)
-- A page that can't agree with the worker uses the fallback, and asks the browser to update the worker.
+- A page that can't agree with the worker uses the fallback, and asks the browser to look for a newer worker.
+  It asks once per page, not once per search.
+- When a new release takes over, the worker the page was using becomes `redundant` and hears nothing more. The page
+  lets go of it, and the next search says hello to the worker that replaced it at the same address.
+- A search that was waiting on the replaced worker, and gives up, doesn't cancel the new worker's hello. Only the
+  hello that the failed search used can be marked as not answering.
 
 ## Turning it on
 
@@ -172,6 +177,22 @@ case). Anything else, including not setting it, is off, so a typo never turns it
   always has. The page doesn't show the worker's problem instead, because a refused request looks the same as
   being offline.
 
+## Keeping files on the device
+
+The worker keeps the index files it fetches in the browser's own database, so a search after the worker has
+been stopped and started again doesn't fetch them again.
+
+- **Current files are always kept.** A file that a current manifest names is never dropped by the rules below.
+- **Out-of-date files are kept for 30 days** after the worker first notices they are out of date, so a visitor
+  part-way through a session can still use them. Then they are dropped.
+- **There is a size limit: 150 MB.** When the kept files are over it, the worker drops out-of-date files, oldest
+  first, even within the 30 days, and stops once it is under the limit. The limit only applies when the worker
+  tidies: when the manifest changes, or when a wait ends.
+- **If the browser clears its storage,** the worker starts from the server again and fetches what it needs. Nothing
+  it holds is trusted to be there.
+- **If another copy of the site wants to upgrade the database,** the worker lets go of its connection straight away,
+  so the upgrade isn't blocked, and reopens the database the next time it needs it.
+
 ## Decided here, and what we left out
 
 Decided:
@@ -189,4 +210,4 @@ Left out on purpose:
 - **Letting the worker tell pages that a new index build exists.** The worker handles a rebuilt index
   inside the question (today's `OutdatedError` retry), so the page needs no news. Add a `notice` kind in
   protocol 1's "only add" way if we ever want a banner.
-- **Clearing or counting the worker's storage from the page.** That belongs with the worker's storage rules, which we still have to write.
+- **Clearing or counting the worker's storage from the page.** The worker tidies its own storage (see "Keeping files on the device"), and the page never reaches into it.
