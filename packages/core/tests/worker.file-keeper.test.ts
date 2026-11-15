@@ -628,3 +628,64 @@ describe('the file keeper, when the browser has emptied its storage', () => {
     expect(text(await keeper.fileNamed(shardName))).toBe('the shard')
   })
 })
+
+describe('the file keeper, under a limit on how much it keeps', () => {
+  const manifestUrl = `${base}/manifest.json`
+  const indexName = 'index-alpha.1111111111.json'
+  const shard = 'shard-0.aaaaaaaaaa.json'
+  const megabyte = 1_000_000
+
+  function publishBuild (server: FakeDataServer) {
+    server.set(`${base}/${indexName}`, { shardCount: 1, shards: [shard], scans: [] })
+    server.set(`${base}/${shard}`, 'the shard')
+    server.set(manifestUrl, { version: 2, indexes: { alpha: indexName }, vectors: [] })
+  }
+
+  /** a keeper on a shelf with the build's files current, and two files out of date that are each a megabyte */
+  function keeperWithOldFiles (maxKeptBytes: number) {
+    const server = new FakeDataServer()
+    publishBuild(server)
+    const shelf = new FakeShelf()
+    const clock = new FakeClock()
+    const keeper = new FileKeeper((url, init) => server.fetch(url, init), shelf, base, { clock, maxKeptBytes })
+    return { server, shelf, clock, keeper }
+  }
+
+  it('drops the oldest out-of-date file once the kept files are over the limit, even within the grace period, and keeps the newer one', async () => {
+    const { shelf, clock, keeper } = keeperWithOldFiles(1.5 * megabyte)
+    await shelf.remember('old-a.1111111111.json', new Uint8Array(megabyte))
+    expect(await keeper.tidy()).toEqual([])
+
+    clock.passDays(1)
+    await shelf.remember('old-b.2222222222.json', new Uint8Array(megabyte))
+    expect(await keeper.tidy()).toEqual(['old-a.1111111111.json'])
+    expect(await shelf.names()).toContain('old-b.2222222222.json')
+    expect(await shelf.names()).not.toContain('old-a.1111111111.json')
+  })
+
+  it('stops dropping as soon as the kept files are under the limit', async () => {
+    const { shelf, clock, keeper } = keeperWithOldFiles(2.5 * megabyte)
+    await shelf.remember('old-a.1111111111.json', new Uint8Array(megabyte))
+    await keeper.tidy()
+    clock.passDays(1)
+    await shelf.remember('old-b.2222222222.json', new Uint8Array(megabyte))
+    await shelf.remember('old-c.3333333333.json', new Uint8Array(megabyte))
+    clock.passDays(1)
+
+    const dropped = await keeper.tidy()
+
+    expect(dropped).toEqual(['old-a.1111111111.json'])
+    expect(await shelf.names()).toEqual(expect.arrayContaining(['old-b.2222222222.json', 'old-c.3333333333.json']))
+  })
+
+  it('never drops a file that a current manifest names, even when those files alone are over the limit', async () => {
+    const { server, shelf, keeper } = keeperWithOldFiles(10)
+    await keeper.currentIndexes()
+    await keeper.fileNamed(shard)
+
+    expect(await keeper.tidy()).toEqual([])
+    expect(await shelf.names()).toEqual(expect.arrayContaining([indexName, shard]))
+    expect(text(await keeper.fileNamed(shard))).toBe('the shard')
+    expect(server.requests.filter(r => r.path.endsWith(shard))).toHaveLength(1)
+  })
+})

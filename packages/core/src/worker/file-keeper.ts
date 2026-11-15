@@ -13,6 +13,8 @@ export interface IRememberFilesByName {
   remember (name: string, bytes: Uint8Array): Promise<void>
   /** the name of everything on the shelf */
   names (): Promise<string[]>
+  /** how many bytes each file takes, by name */
+  sizes (): Promise<Record<string, number>>
   /** throw one file away; nothing happens if it isn't there */
   forget (name: string): Promise<void>
 }
@@ -65,16 +67,18 @@ export class FileKeeper implements IHandOverIndexFiles {
   private reader: IReadManifests
   private clock: IReadTheTime
   private graceMs: number
+  private maxKeptBytes: number
 
   constructor (
     private fetchFile: FetchAFile,
     private shelf: IRememberFilesByName,
     private baseUrl: string,
-    options: { reader?: IReadManifests, clock?: IReadTheTime, graceMs?: number } = {}
+    options: { reader?: IReadManifests, clock?: IReadTheTime, graceMs?: number, maxKeptBytes?: number } = {}
   ) {
     this.reader = options.reader ?? new ManifestReader()
     this.clock = options.clock ?? { now: () => Date.now() }
     this.graceMs = options.graceMs ?? 30 * oneDay
+    this.maxKeptBytes = options.maxKeptBytes ?? 150 * 1024 * 1024
   }
 
   /**
@@ -153,9 +157,28 @@ export class FileKeeper implements IHandOverIndexFiles {
         stillOutOfDate[name] = since
       }
     }
+    await this.dropOldestOverTheLimit(stillOutOfDate, dropped)
     await this.shelf.remember(noticesName, new TextEncoder().encode(JSON.stringify(stillOutOfDate)))
     await this.shelf.remember(tidiedAgainstName, manifestBytes)
     return dropped
+  }
+
+  /**
+   * If the files we keep are over the size limit, throws away out-of-date files, oldest first, until we are
+   * under it. This ignores the grace period: a full shelf hurts a visitor more than a file they may still want.
+   * Files a current manifest names are never dropped, so current files alone can pass the limit.
+   */
+  private async dropOldestOverTheLimit (stillOutOfDate: Record<string, number>, dropped: string[]): Promise<void> {
+    const sizes = await this.shelf.sizes()
+    let total = Object.entries(sizes).filter(([name]) => !ownFiles.has(name)).reduce((sum, [, bytes]) => sum + bytes, 0)
+    const oldestFirst = Object.keys(stillOutOfDate).sort((a, b) => stillOutOfDate[a] - stillOutOfDate[b])
+    for (const name of oldestFirst) {
+      if (total <= this.maxKeptBytes) break
+      await this.shelf.forget(name)
+      total -= sizes[name] ?? 0
+      delete stillOutOfDate[name]
+      dropped.push(name)
+    }
   }
 
   /** when each out-of-date file was first noticed, as written down by an earlier tidy */

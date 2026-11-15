@@ -19,6 +19,10 @@ export class FakeShelf implements IRememberFilesByName {
     return [...this.files.keys()]
   }
 
+  async sizes (): Promise<Record<string, number>> {
+    return Object.fromEntries([...this.files].map(([name, bytes]) => [name, bytes.byteLength]))
+  }
+
   async forget (name: string): Promise<void> {
     this.files.delete(name)
   }

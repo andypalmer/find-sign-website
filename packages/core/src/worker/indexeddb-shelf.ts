@@ -48,6 +48,21 @@ export class IndexedDbShelf implements IRememberFilesByName {
     return (await answerOf(drawer.getAllKeys())).map(String)
   }
 
+  async sizes (): Promise<Record<string, number>> {
+    const drawer = await this.drawerToRead()
+    return new Promise((resolve, reject) => {
+      const sizes: Record<string, number> = {}
+      const walk = drawer.openCursor()
+      walk.onsuccess = () => {
+        const cursor = walk.result
+        if (!cursor) return resolve(sizes)
+        sizes[String(cursor.key)] = (cursor.value as Uint8Array).byteLength
+        cursor.continue()
+      }
+      walk.onerror = () => reject(walk.error)
+    })
+  }
+
   async forget (name: string): Promise<void> {
     const { drawer, saved } = await this.drawerToWrite()
     drawer.delete(name)

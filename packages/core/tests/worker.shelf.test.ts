@@ -63,6 +63,14 @@ describe.each<[string, () => IRememberFilesByName]>([
     expect(await shelf.names()).toEqual(['b'])
   })
 
+  it('says how many bytes each file takes', async () => {
+    const shelf = newShelf()
+    await shelf.remember('a', bytesOf('one'))
+    await shelf.remember('b', new Uint8Array(10))
+
+    expect(await shelf.sizes()).toEqual({ a: 3, b: 10 })
+  })
+
   it('does nothing when told to throw away a file it does not have', async () => {
     const shelf = newShelf()
     await shelf.remember('a', bytesOf('1'))
