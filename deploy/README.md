@@ -63,7 +63,10 @@ for their source video, so re-encoding a changed video never overwrites what the
 The index files come from a plain nginx that serves the find sign collections as static files. It can't search,
 batch files, list a folder or accept writes, so everything the browser needs from it has to be a file it can
 fetch. `nginx-index-files.conf` here holds the settings we want on its `/collections/` location. Put the file
-in nginx's config and `include` it there, or copy the lines.
+in nginx's config and `include` it there, or copy the lines. `nginx-cache-rules.conf` holds the cache rules for the
+version 2 index files. It goes at the server level, because nginx doesn't allow a location inside a location, and
+it needs the same root as `/collections/`. Each block repeats the CORS header, since a block's own headers replace
+its parent's.
 
 What it does, measured with headless Chrome against a local nginx using these settings (11 indexes, the same
 steps before and after):
