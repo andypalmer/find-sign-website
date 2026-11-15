@@ -38,6 +38,8 @@ export type SearchSeams = {
   loadLibrary (columns: string[], knownVectors: { [word: string]: WordVector } | undefined, forceReload: boolean): Promise<SearchLibrary>,
   /** the name of the index a result came from */
   indexNameOf (entry: LoadedOrthagonalEntry): string,
+  /** told when something went wrong that the search got round, so it isn't silent. Default: the console */
+  warn?: (words: string) => void,
 }
 
 // the rank of a sign whose English phrase is the query: well before any match by words, which start at 0, even
@@ -52,10 +54,18 @@ export async function answerSearch (query: string, start: number, length: number
   if (checkQueryContainsWords(query)) knownVectors = await seams.knownVectors()
 
   // word lookup function which checks the known vectors before bothering to load rare words
-  // from the word vector library
+  // from the word vector library. If the library can't be reached for a word (a blocked or failed request looks the
+  // same as being offline), the search carries on with that word as plain text: signs that have the word still match.
+  // That is much better than failing the whole search over a word nobody's sign uses
+  const warn = seams.warn ?? ((words: string) => console.warn(`[search] ${words}`))
   const lookupLocal = async function (word: string) {
     if (knownVectors && knownVectors[word]) return knownVectors[word]
-    return seams.lookupVector(word)
+    try {
+      return await seams.lookupVector(word)
+    } catch (error) {
+      warn(`couldn't look up "${word}" in the word vector library (${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}), so searching for it as plain text`)
+      return undefined
+    }
   }
 
   // parse and compile the user's search query string in to a list of which data needs to be loaded

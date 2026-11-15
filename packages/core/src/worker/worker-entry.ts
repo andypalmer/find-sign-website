@@ -10,6 +10,7 @@ import type { OpensDatabases } from './indexeddb-shelf.ts'
 import { KeptLibrary } from './kept-library.ts'
 import type { IAnswerLetters, IReceiveLetters, ReplyPort } from './letters.ts'
 import { Switchboard } from './switchboard.ts'
+import { sayingWhichLibrary } from '#lib/search/vector-lookup-errors.ts'
 import { indexFolderOf, settingsFromTheWorkersAddress } from './worker-settings.ts'
 
 /** the parts of the service worker's global that the worker uses; tests pass a pretend one */
@@ -68,7 +69,7 @@ function switchboardFor (scope: WorkerScope, workerBuild: string): IReceiveLette
   const wordVectors = vectorLibrary(settings.vectorLibraryUrl.replace(/\/+$/, ''), { fetch: fetchOnItsOwn as typeof globalThis.fetch })
   const desks: Record<string, IAnswerLetters> = {
     'front-desk': new FrontDesk(workerBuild),
-    'search-desk': new SearchDesk(library.asSearchSeams(wordVectors.lookup))
+    'search-desk': new SearchDesk(library.asSearchSeams(sayingWhichLibrary(settings.vectorLibraryUrl, wordVectors.lookup)))
   }
   return new Switchboard(desks)
 }

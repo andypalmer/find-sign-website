@@ -114,6 +114,39 @@ describe('answerSearch()', () => {
     expect(ids(response)[0]).toBe('alpha:cat')
   })
 
+  it('searches for the word as plain text, and says so, when its vector can\'t be fetched, rather than failing the whole search', async () => {
+    const library = libraryOf(sign({ id: 'elderly', words: ['elderly'], vectors: [] }), sign({ id: 'young', words: ['young'], vectors: [] }))
+    const warned: string[] = []
+    const seams = seamsFor(library, {
+      knownVectors: async () => ({}),
+      lookupVector: vi.fn(async () => { throw new TypeError('Failed to fetch') }),
+      warn: words => warned.push(words)
+    })
+    const response = await answerSearch('elderly', 0, 10, seams)
+    expect(ids(response)).toEqual(['alpha:elderly'])
+    expect(warned).toHaveLength(1)
+    expect(warned[0]).toMatch(/elderly/)
+    expect(warned[0]).toMatch(/Failed to fetch/)
+  })
+
+  it('does not let one word\'s failed lookup spoil the others in the same search', async () => {
+    const library = libraryOf(sign({ id: 'cat', words: ['cat'], tags: ['animal'], vectors: [known.cat] }))
+    const seams = seamsFor(library, { lookupVector: async () => { throw new Error('the library is down') }, warn: () => {} })
+    // "cat" is known to the signs, so it needs no lookup; the tag is a plain filter
+    expect(ids(await answerSearch('#animal cat', 0, 10, seams))).toEqual(['alpha:cat'])
+  })
+
+  it('says it in the console when nobody asked to hear it, so a failure is never silent', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const seams = seamsFor(libraryOf(sign({ id: 'elderly', words: ['elderly'], vectors: [] })), { knownVectors: async () => ({}), lookupVector: async () => { throw new TypeError('Failed to fetch') } })
+      await answerSearch('elderly', 0, 10, seams)
+      expect(warn).toHaveBeenCalledTimes(1)
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
   it('does not look a word up in the library when the signs already have it', async () => {
     const seams = seamsFor(animals())
     await answerSearch('cat', 0, 10, seams)
