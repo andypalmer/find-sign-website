@@ -26,20 +26,24 @@ export class SearchViaTheWorker implements ISearchForSigns {
   private speaks: number[]
   private log: (words: string) => void
   private helloTimeoutMs?: number
-  /** whether the worker is worth asking: found out once, by saying hello, and given up on for the rest of the page if it lets us down */
-  private usable?: Promise<boolean>
+  /** the hello: started once, and settles to whether the worker answered. It can still be pending when a search runs */
+  private hello?: Promise<boolean>
+  private helloGraceMs: number
 
   /** `worker` is undefined when the browser has no service worker for us; `fallback` is the search to use then */
-  constructor (worker: IAskTheWorker | undefined, fallback: ISearchForSigns['search'], options: { speaks?: number[], log?: (words: string) => void, helloTimeoutMs?: number } = {}) {
+  constructor (worker: IAskTheWorker | undefined, fallback: ISearchForSigns['search'], options: { speaks?: number[], log?: (words: string) => void, helloTimeoutMs?: number, helloGraceMs?: number } = {}) {
     this.worker = worker
     this.fallback = fallback
     this.speaks = options.speaks ?? [currentProtocol]
     this.log = options.log ?? (words => console.warn(`[search] ${words}`))
     this.helloTimeoutMs = options.helloTimeoutMs
+    // how long a search waits for hello before searching directly. A worker that is still installing or fetching
+    // must not hold up the search: it can take over for the next one
+    this.helloGraceMs = options.helloGraceMs ?? 1500
   }
 
   async search (query: string, start: number, length: number, options: SearchOptions = {}): Promise<SearchResponse> {
-    if (!this.worker || !(await this.workerIsUsable())) return await this.fallback(query, start, length, options)
+    if (!this.worker || !(await this.workerIsReadyWithinGrace())) return await this.fallback(query, start, length, options)
     try {
       const answer = await this.worker.ask('search-desk', 'search', { query, start, length }, { signal: options.signal, onProgress: options.onProgress })
       if (!looksLikeASearchResponse(answer)) throw new WorkerRefused('unexpected', 'the worker\'s answer wasn\'t a search answer')
@@ -49,8 +53,12 @@ export class SearchViaTheWorker implements ISearchForSigns {
     }
   }
 
-  private workerIsUsable (): Promise<boolean> {
-    this.usable ??= (async () => {
+  /**
+   * Whether the worker has said hello, waiting at most the grace period for it. A hello that has come back is kept, so
+   * later searches use the worker straight away; a hello that never comes back makes the page search directly from then on.
+   */
+  private workerIsReadyWithinGrace (): Promise<boolean> {
+    this.hello ??= (async () => {
       try {
         await this.worker!.ask('front-desk', 'hello', { speaks: this.speaks }, { silenceTimeoutMs: this.helloTimeoutMs })
         return true
@@ -59,7 +67,8 @@ export class SearchViaTheWorker implements ISearchForSigns {
         return false
       }
     })()
-    return this.usable
+    const grace = new Promise<boolean>(resolve => setTimeout(() => resolve(false), this.helloGraceMs))
+    return Promise.race([this.hello, grace])
   }
 
   private async whatToDoAbout (error: unknown, query: string, start: number, length: number, options: SearchOptions): Promise<SearchResponse> {
@@ -69,10 +78,10 @@ export class SearchViaTheWorker implements ISearchForSigns {
     if (error instanceof WorkerRefused) {
       if (error.reason === 'cancelled') throw error
       // a worker that has no such desk or question is an old one: leave it alone for the rest of the page
-      if (error.reason === 'no-such-actor' || error.reason === 'no-such-question') this.usable = Promise.resolve(false)
+      if (error.reason === 'no-such-actor' || error.reason === 'no-such-question') this.hello = Promise.resolve(false)
       this.log(`the worker couldn't search (${error.reason}: ${error.message}), so we searched without it`)
     } else if (error instanceof WorkerDidNotAnswer) {
-      this.usable = Promise.resolve(false)
+      this.hello = Promise.resolve(false)
       this.log(`the worker stopped answering, so we search without it on this page: ${error.message}`)
     } else {
       this.log(`something went wrong asking the worker, so we searched without it: ${(error as Error)?.message}`)

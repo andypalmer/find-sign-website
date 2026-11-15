@@ -281,3 +281,46 @@ describe('the page\'s search, asking the worker', () => {
     expect(fallback.mock.calls[0][3]).toMatchObject({ signal: controller.signal })
   })
 })
+
+describe('the page\'s search, when the worker is slow to say hello', () => {
+  // a worker that never says hello, and a direct search that is quick
+  const silentDesks = () => ({ 'front-desk': new ScriptedDesk(() => sleep(10_000)), 'search-desk': new SearchDesk(seams) })
+
+  it('does not make the search wait for hello: after a short grace it searches directly, so the page doesn\'t spin', async () => {
+    const { worker } = workerWith(silentDesks())
+    const fallback = vi.fn(async () => direct)
+    const page = new SearchViaTheWorker(new Messenger(worker, { silenceTimeoutMs: 10_000 }), fallback, { helloGraceMs: 50, log: () => {} })
+    const started = Date.now()
+    expect((await page.search('cat', 0, 10)).results[0].id).toBe('from-the-fallback')
+    expect(Date.now() - started).toBeLessThan(1000)
+    expect(fallback).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the worker for a later search once hello has come back, even though an earlier search went direct', async () => {
+    let answerHelloAfter = 100
+    const desks = {
+      'front-desk': new ScriptedDesk(async () => { await sleep(answerHelloAfter); return { protocol: 1, workerBuild: 'late' } }),
+      'search-desk': new SearchDesk(seams)
+    }
+    const { worker } = workerWith(desks)
+    const fallback = vi.fn(async () => direct)
+    const page = new SearchViaTheWorker(new Messenger(worker, { silenceTimeoutMs: 10_000 }), fallback, { helloGraceMs: 30, log: () => {} })
+    expect((await page.search('cat', 0, 10)).results[0].id).toBe('from-the-fallback')
+    await sleep(150)
+    expect((await page.search('cat', 0, 10)).results[0].id).toBe('cat')
+    expect(fallback).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops asking, and searches directly for the rest of the page, when hello never comes back, without waiting again', async () => {
+    const { worker, letters } = workerWith(silentDesks())
+    const fallback = vi.fn(async () => direct)
+    const page = new SearchViaTheWorker(new Messenger(worker, { silenceTimeoutMs: 40 }), fallback, { helloGraceMs: 20, log: () => {} })
+    await page.search('cat', 0, 10)
+    await sleep(80)
+    const started = Date.now()
+    await page.search('kitten', 0, 10)
+    expect(Date.now() - started).toBeLessThan(50)
+    expect(letters.filter(letter => letter.ask === 'search')).toEqual([])
+  })
+})
+
