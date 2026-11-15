@@ -246,3 +246,22 @@ describe('KeptLibrary on the search engine', () => {
     expect(response.results[0].id).toBe('cat')
   })
 })
+
+describe('KeptLibrary, when the browser has emptied its storage', () => {
+  it('loads the same signs again from the server when a new worker starts on the emptied shelf', async () => {
+    const server = new FakeDataServer()
+    await publish(server)
+    const shelf = new FakeShelf()
+    const search = () => new KeptLibrary(
+      new FileKeeper((url, init) => server.fetch(url, init), shelf, base),
+      { baseUrl: base, indexes: ['alpha', 'beta'] }
+    ).asSearchSeams(async () => undefined)
+    const before = await search().loadLibrary([], undefined, false)
+
+    shelf.files.clear()
+    const after = await search().loadLibrary([], undefined, false)
+
+    expect(idsOf(after as never, 'alpha')).toEqual(idsOf(before as never, 'alpha'))
+    expect(idsOf(after as never, 'beta')).toEqual(idsOf(before as never, 'beta'))
+  })
+})

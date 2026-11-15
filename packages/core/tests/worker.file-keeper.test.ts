@@ -579,3 +579,52 @@ describe('the file keeper, tidying by itself as searches go through it', () => {
     expect(forget.mock.calls.length).toBeGreaterThan(1)
   })
 })
+
+describe('the file keeper, when the browser has emptied its storage', () => {
+  const manifestUrl = `${base}/manifest.json`
+  const indexName = 'index-alpha.1111111111.json'
+  const shardName = 'shard-0.aaaaaaaaaa.json'
+  const scanName = 'scan-0.bbbbbbbbbb.json'
+
+  function publishBuild (server: FakeDataServer) {
+    server.set(`${base}/${indexName}`, { shardCount: 1, shards: [shardName], scans: [scanName] })
+    server.set(`${base}/${shardName}`, 'the shard')
+    server.set(`${base}/${scanName}`, 'the scan')
+    server.set(manifestUrl, { version: 2, indexes: { alpha: indexName }, vectors: [] })
+  }
+  const requestedNames = (server: FakeDataServer) => server.requests.map(r => r.path.split('/').pop())
+
+  it('fetches what it needs again, and gives the same answers, when the shelf comes back empty mid-session', async () => {
+    const server = new FakeDataServer()
+    publishBuild(server)
+    const shelf = new FakeShelf()
+    const keeper = new FileKeeper((url, init) => server.fetch(url, init), shelf, base)
+    const before = await keeper.currentIndexes()
+    await keeper.fileNamed(shardName)
+
+    shelf.files.clear()
+    server.requests = []
+
+    expect(await keeper.currentIndexes()).toEqual(before)
+    expect(text(await keeper.fileNamed(shardName))).toBe('the shard')
+    expect(requestedNames(server)).toEqual(expect.arrayContaining([indexName, shardName]))
+  })
+
+  it('starts cleanly from an empty shelf after a restart, with the server reachable', async () => {
+    const server = new FakeDataServer()
+    publishBuild(server)
+    const keeper = new FileKeeper((url, init) => server.fetch(url, init), new FakeShelf(), base)
+
+    expect(Object.keys(await keeper.currentIndexes())).toEqual(['alpha'])
+    expect(text(await keeper.fileNamed(scanName))).toBe('the scan')
+  })
+
+  it('tidies an empty shelf without throwing away anything, and keeps working afterwards', async () => {
+    const server = new FakeDataServer()
+    publishBuild(server)
+    const keeper = new FileKeeper((url, init) => server.fetch(url, init), new FakeShelf(), base)
+
+    await expect(keeper.tidy()).resolves.toEqual([])
+    expect(text(await keeper.fileNamed(shardName))).toBe('the shard')
+  })
+})
