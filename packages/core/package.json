@@ -16,9 +16,9 @@
   },
   "dependencies": {
     "@andypalmer/find-sign-util": "^0.1.0",
-    "@andypalmer/orthagonal": "^0.2.0",
+    "@andypalmer/orthagonal": "^0.2.1",
     "@andypalmer/tags": "^0.1.0",
-    "@andypalmer/vectors": "^0.1.0"
+    "@andypalmer/vectors": "^0.1.1"
   },
   "peerDependencies": {
     "svelte": "^5.57.2"

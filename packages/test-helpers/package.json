@@ -16,9 +16,9 @@
   "dependencies": {
     "@find-sign/core": "*",
     "tweetnacl-ts": "^1.0.3",
-    "@andypalmer/indexer": "^0.2.0",
+    "@andypalmer/indexer": "^0.2.1",
     "@andypalmer/data-store": "^0.1.0",
-    "@andypalmer/vectors": "^0.1.0"
+    "@andypalmer/vectors": "^0.1.1"
   },
   "devDependencies": {
     "fake-indexeddb": "^6.2.8"
