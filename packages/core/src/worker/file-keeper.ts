@@ -235,7 +235,7 @@ export class FileKeeper implements IHandOverIndexFiles {
     if (response.status === 304 && kept) return kept // (the browser answers this itself, but something else along the way might not)
     if (!response.ok) {
       if (kept) return kept // the same reasoning: a server in trouble is no reason to stop searching
-      throw new Error(`could not fetch ${manifestName}: status ${response.status}`)
+      throw new FileUnavailable(manifestName, response.status)
     }
 
     const bytes = new Uint8Array(await response.arrayBuffer())

@@ -23,6 +23,15 @@ describe('the file keeper, asked for a file named by its contents', () => {
     expect(text(await keeper.fileNamed('shard-12.4f9a1c07be.json'))).toBe('{"signs":[1]}')
   })
 
+  it('says a missing manifest.json the same way: as a file the data server does not have, with its status', async () => {
+    const { keeper } = keeperWith({})
+    const missing = await keeper.manifest().catch(error => error)
+
+    expect(missing).toBeInstanceOf(FileUnavailable)
+    expect(missing).toMatchObject({ fileName: 'manifest.json', status: 404 })
+    expect(missing.message).toBe('could not fetch manifest.json: status 404')
+  })
+
   it('says why a file could not be fetched, with the status, so a missing file is not mistaken for a network failure', async () => {
     const { keeper, server } = keeperWith({ 'manifest.json': '{}' })
     const missing = await keeper.fileNamed('shard-1.aaaaaaaaaa.json').catch(error => error)
