@@ -1,3 +1,4 @@
+import type { SearchLibrary } from '../src/search/search-engine.ts'
 import { describe, expect, it } from 'vitest'
 import { FakeDataServer } from '@find-sign/test-helpers/fake-data-server.ts'
 import { planPublishOrder, writeVersion2Index, writeVersion2Vectors, type EncodedSearchData } from '@andypalmer/orthagonal'
@@ -41,5 +42,39 @@ describe('the bookshelf library, which answers the way the version 1 library doe
     const whole = await library.beta.entries[0].load()
 
     expect(whole.title).toBe('CAR')
+  })
+})
+
+describe('the bookshelf library, while the version 2 index is not published', () => {
+  const fromVersion1 = { alpha: { url: 'version-1', indexName: 'alpha', entries: [] } } as unknown as SearchLibrary
+
+  it('answers from the version 1 library when the data server has no version 2 manifest', async () => {
+    const server = new FakeDataServer()
+    const fallback = async () => fromVersion1
+    const getLibrary = bookshelfGetSearchLibrary({ baseUrl: base, indexes: ['alpha', 'beta'], fetch: (url, init) => server.fetch(url, init), fallback })
+
+    expect(await getLibrary(['alpha'], ['id'], false)).toBe(fromVersion1)
+  })
+
+  it('answers from version 2, not the fallback, once the manifest is there', async () => {
+    const server = await publishedServer()
+    let asked = false
+    const fallback = async () => { asked = true; return fromVersion1 }
+    const getLibrary = bookshelfGetSearchLibrary({ baseUrl: base, indexes: ['alpha', 'beta'], fetch: (url, init) => server.fetch(url, init), fallback })
+    const library = await getLibrary(['alpha'], ['id'], false)
+
+    expect(asked).toBe(false)
+    expect(library.alpha.entries.map(entry => entry.id).sort()).toEqual(['cat', 'dog'])
+  })
+
+  it('does not fall back on a server error: that is a failure to report, not a missing version 2', async () => {
+    const server = new FakeDataServer()
+    server.failures.set(`${base}/manifest.json`, 500)
+    let asked = false
+    const fallback = async () => { asked = true; return fromVersion1 }
+    const getLibrary = bookshelfGetSearchLibrary({ baseUrl: base, indexes: ['alpha', 'beta'], fetch: (url, init) => server.fetch(url, init), fallback })
+
+    await expect(getLibrary(['alpha'], ['id'], false)).rejects.toThrow()
+    expect(asked).toBe(false)
   })
 })
