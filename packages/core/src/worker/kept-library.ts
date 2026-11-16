@@ -60,9 +60,18 @@ export class KeptLibrary {
     this.indexes = options.indexes
   }
 
+  /** manifest.json as the keeper holds it right now: the search reads it once, through here */
+  manifest (): Promise<Uint8Array> {
+    return this.keeper.manifest()
+  }
+
   /** every word the signs use, with its vector: the shared vector files, fetched once and kept while they are current */
   async knownVectors (): Promise<Words> {
-    const manifestBytes = await this.keeper.manifest()
+    return this.knownVectorsFrom(await this.keeper.manifest())
+  }
+
+  /** the same, given a copy of manifest.json the caller has already read (so one search reads it once) */
+  async knownVectorsFrom (manifestBytes: Uint8Array): Promise<Words> {
     const fileNames = this.manifests.sharedFileNamesIn(this.manifests.readTop(manifestBytes))
     const key = fileNames.join(',')
     if (this.words?.key !== key) {
@@ -80,8 +89,13 @@ export class KeptLibrary {
   }
 
   /** every index, with what a search looks at. Given the known vectors, each sign has the vectors of its words */
-  async loadLibrary (_columns: string[], knownVectors: Words | undefined, forceReload: boolean): Promise<SearchLibrary> {
-    const manifestText = decode(await this.keeper.manifest())
+  async loadLibrary (columns: string[], knownVectors: Words | undefined, forceReload: boolean): Promise<SearchLibrary> {
+    return this.loadLibraryFrom(await this.keeper.manifest(), columns, knownVectors, forceReload)
+  }
+
+  /** the same, given a copy of manifest.json the caller has already read (so one search reads it once) */
+  async loadLibraryFrom (manifestBytes: Uint8Array, _columns: string[], knownVectors: Words | undefined, forceReload: boolean): Promise<SearchLibrary> {
+    const manifestText = decode(manifestBytes)
     if (forceReload || this.loaded?.manifestText !== manifestText) {
       const loading = { manifestText, library: this.loadEveryIndex(), vectorsAttached: false }
       this.loaded = loading
@@ -106,6 +120,16 @@ export class KeptLibrary {
       knownVectors: () => this.knownVectors(),
       lookupVector,
       loadLibrary: (columns, knownVectors, forceReload) => this.loadLibrary(columns, knownVectors, forceReload),
+      indexNameOf: entry => entry.indexName ?? ''
+    }
+  }
+
+  /** the seams for one search: the caller reads manifest.json once, and both seams use that same copy */
+  asSearchSeamsFor (manifestBytes: Uint8Array, lookupVector: (word: string) => Promise<WordVector | undefined>): SearchSeams {
+    return {
+      knownVectors: () => this.knownVectorsFrom(manifestBytes),
+      lookupVector,
+      loadLibrary: (columns, knownVectors, forceReload) => this.loadLibraryFrom(manifestBytes, columns, knownVectors, forceReload),
       indexNameOf: entry => entry.indexName ?? ''
     }
   }

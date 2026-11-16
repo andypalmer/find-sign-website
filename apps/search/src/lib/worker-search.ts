@@ -3,8 +3,7 @@
 // direct search, since only a browser has a service worker.
 import { browser } from '$app/env'
 import { SEARCH_DATA, SEARCH_INDEX_NAME, SEARCH_INDEXES, SERVICE_WORKER, VECTOR_INDEX } from '$app/env/public'
-import { availableIndexes, search } from '@find-sign/core/search/search.ts'
-import { makeServerSearch } from '@find-sign/core/search/server-search.ts'
+import { search } from '@find-sign/core/search/search.ts'
 import { createPageSearch, serviceWorkerWanted } from '@find-sign/core/worker-client/page-search.ts'
 
 /**
@@ -25,13 +24,5 @@ export const pageSearch = createPageSearch({
   container: browser && 'serviceWorker' in navigator ? navigator.serviceWorker : undefined,
   scriptAddress: '/service-worker.js',
   type: workerType,
-  fallback: (query, start, length) => browser ? search(query, start, length) : serverSearch(query, start, length)
+  fallback: (query, start, length) => search(query, start, length)
 })
-
-// the server's render searches the version 2 index, kept in the server's memory. It is made the first time it is
-// needed, so the browser (which never renders this) doesn't build it. The browser's own fallback stays on version 1.
-let searchOnTheServer: ReturnType<typeof makeServerSearch> | undefined
-function serverSearch (query: string, start: number, length: number) {
-  searchOnTheServer ??= makeServerSearch({ baseUrl: `${SEARCH_DATA.replace(/\/+$/, '')}/${SEARCH_INDEX_NAME}`, indexes: availableIndexes })
-  return searchOnTheServer(query, start, length)
-}

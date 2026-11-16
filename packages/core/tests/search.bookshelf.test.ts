@@ -39,3 +39,12 @@ describe('search, once the bookshelf is set', () => {
     expect(server.requests.map(request => request.path.split('/').pop())).not.toContain('global-vectors.lps')
   })
 })
+
+describe('search, reading the manifest', () => {
+  it('reads manifest.json once for the whole search', async () => {
+    server.resetRequests()
+    await search('cat', 0, 10)
+
+    expect(server.requests.filter(request => request.path.endsWith('/manifest.json'))).toHaveLength(1)
+  })
+})

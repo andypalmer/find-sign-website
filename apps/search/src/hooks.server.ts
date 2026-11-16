@@ -4,7 +4,7 @@
 import type { HandleServerError } from '@sveltejs/kit/hooks'
 import { SEARCH_DATA, SEARCH_INDEX_NAME, VERSION_LABEL } from '$app/env/public'
 import { errorForTheErrorPage } from '#lib/describe-error.ts'
-import { availableIndexes, getSearchLibraryFromVersion1, knownVectorsFromVersion1, useTheBookshelf } from '@find-sign/core/search/search.ts'
+import { availableIndexes, getSearchLibraryFromVersion1, searchVersion1, useTheBookshelf } from '@find-sign/core/search/search.ts'
 import { makeBookshelf } from '@find-sign/core/search/bookshelf-library.ts'
 
 // the server reads the version 2 index from its own memory for every search and every caller of getSearchLibrary.
@@ -13,7 +13,7 @@ useTheBookshelf(makeBookshelf({
   baseUrl: `${SEARCH_DATA.replace(/\/+$/, '')}/${SEARCH_INDEX_NAME}`,
   indexes: availableIndexes,
   fallback: getSearchLibraryFromVersion1,
-  fallbackKnownVectors: knownVectorsFromVersion1
+  fallbackSearch: searchVersion1
 }))
 
 export const handleError: HandleServerError = ({ kind, error }) => {

@@ -57,12 +57,18 @@ export function knownVectorsFromVersion1 () {
   return openGlobalVectors(SEARCH_DATA + fn`${IndexName}/global-vectors.lps`)
 }
 
-// the page's search: the search engine, run on the server's bookshelf when the server has one, and the v1 index files otherwise
+// the page's search: the bookshelf's search when the server has one, and the v1 index files otherwise
 export async function search (query: string, start: number, length: number, forceReload = false): Promise<SearchResponse> {
+  if (theBookshelf) return theBookshelf.search(query, start, length, forceReload)
+  return searchVersion1(query, start, length, forceReload)
+}
+
+// the search engine, run on the v1 index files and the site's settings
+export async function searchVersion1 (query: string, start: number, length: number, forceReload = false): Promise<SearchResponse> {
   return await answerSearch(query, start, length, {
-    knownVectors: () => theBookshelf ? theBookshelf.knownVectors() : knownVectorsFromVersion1(),
+    knownVectors: () => knownVectorsFromVersion1(),
     lookupVector: lookup,
-    loadLibrary: (columns, knownVectors, reload) => getSearchLibrary(false, columns, reload, knownVectors),
+    loadLibrary: (columns, knownVectors, reload) => getSearchLibraryFromVersion1(false, columns, reload, knownVectors),
     indexNameOf: entry => indexByURL[entry.indexURL]
   }, forceReload)
 }
