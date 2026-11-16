@@ -32,14 +32,14 @@ CI publishes an image per app to ghcr.io, and release-please cuts versioned rele
 ## Requirements
 
 1. The website needs a precomputed vector dataset, that translates written words in to a word2vec type of vector space. Auslan Find Sign uses Facebook/Meta's FastText common-crawl english. This is converted to a compact sharded format using [find-sign-vectors-builder](https://github.com/auslan-find-sign/find-sign-vectors-builder) which creates the needed output that can be served on any static http server. The path to this output needs to be configured in `apps/search/.env` and `apps/admin/.env` - take a look at each app's `example.env` to see how this file is made. `find-sign-vector-builder` has instructions on usage, and fasttext provides premade data for almost every popular written language on earth.
-2. The website needs a search index. This is currently being built with legacy code from the old project. TODO: reimplement a cleaner search index builder.
+2. The website needs a search index. The [find-sign-pipeline](https://github.com/andypalmer/find-sign-pipeline) indexer builds it (its `find-sign-index` command, or the admin app's build pages). It writes the version 1 and version 2 indexes side by side, and the website reads either one.
 3. If you want the discord bot, you'll need to register a dev account on discord, make a bot, and provide the needed secrets in `apps/search/.env`. the endpoint url to use is `https://yoursite/discord/interactions`. You'll also need to manually visit `/discord/setup` with curl or a web browser to get find-sign-website to upload the discord slash commands to their systems. Consider curling this url as part of your deployment cycle.
 
 ## TODO List:
 
- - Implement new search index format, and make a builder
- - Admin WebUI where manual results corrections can be nicely entered?
  - Privacy preserving analytics?
+
+Open work is tracked in the project's issue tracker, and `component_map.md` describes how the parts fit together.
 
 ## I want to contribute data, how can I best make it accessible to find sign?
 

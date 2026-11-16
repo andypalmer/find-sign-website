@@ -1,91 +1,108 @@
 # find-sign-website component map
 
-Beyond the main search UI, client-side search, admin interface, Tumblr feed, the custom "orthagonal" index store and the writable data server, the site also does these jobs: a **Discord bot**, **outbound feeds and SEO endpoints** (discovery feeds, sitemap, OpenSearch), **random sign** and **browse-by-provider** pages, a **manual corrections ("overrides")** layer, a **region filter**, and **analytics** (switched off in the code). Below are all the components, grouped by category.
+Beyond the main search UI, the site does these jobs: a **Discord bot**, **outbound feeds and SEO endpoints**
+(discovery feeds, sitemap, OpenSearch), **random sign** and **browse-by-provider** pages, a **manual corrections
+("overrides")** layer, a **region filter**, and **analytics** (switched off in the code). The admin app (deployed
+separately, and not deployed at the moment) adds index builds, overrides, users, the audit log and passkey login.
+
+Paths are from the workspace root. `apps/search` is the public site, `apps/admin` is the admin app, and
+`packages/` holds the code both share.
 
 ## Component map
 
 ### 1. Public UI (for people searching)
 | Component | Where | Notes |
 |---|---|---|
-| Homepage + activity feed | `routes/+page.*`, `lib/DiscoveryFeed.svelte` | Merges the 20 newest index entries with the Tumblr RSS feed |
-| Search results | `routes/search/`, `lib/result/Result.svelte`, `Carousel.svelte` | Runs on the server for the first page load, then in the browser on later navigation |
-| Sign permalink page | `routes/sign/[index]/[id]` | One entry in full |
-| Browse by provider | `routes/sign/`, `routes/sign/[index]` | Lists every entry in an index |
-| Random sign | `routes/random/`, `lib/search/random.ts` | Hides some tags (signpedia, invented, crude, sexuality, fingerspelling) |
-| Region filter | `lib/RegionMap.svelte`, `region-store.ts` | Remembered in `localStorage`; becomes a `#region` term in the query |
-| News | `routes/news/`, `lib/data-io/rss.ts` | Tumblr/blog RSS |
-| Static pages | `about`, `technology` | `technology` is prerendered at build time |
+| Homepage + activity feed | `apps/search/src/routes/+page.svelte`, `apps/search/src/lib/DiscoveryFeed.svelte` | Merges the newest index entries with the news RSS feed |
+| Search results | `apps/search/src/routes/search/`, `apps/search/src/lib/result/` | First page is rendered on the server; later navigation runs in the browser |
+| Sign permalink page | `apps/search/src/routes/sign/[index=provider]/[id=filename]` | One entry in full |
+| Browse by provider | `apps/search/src/routes/sign/` | Lists every entry in an index |
+| Random sign | `apps/search/src/routes/random/`, `apps/search/src/lib/search/random.ts` | Hides some tags (signpedia, invented, crude, sexuality, fingerspelling) |
+| Region filter | `apps/search/src/lib/RegionMap.svelte`, `apps/search/src/lib/models/region-store.ts` | Remembered in the browser; becomes a `#region` term in the query |
+| News | `apps/search/src/routes/news/`, `apps/search/src/lib/data-io/rss.ts` | Tumblr and blog RSS |
+| Static pages | `apps/search/src/routes/about`, `apps/search/src/routes/technology` | `technology` is prerendered at build time |
 
-### 2. Search engine (runs in both browser and server)
+### 2. Search engine (runs in the browser and on the server)
 | Component | Where | Notes |
 |---|---|---|
-| Query language | `lib/search/text.ts` | Words, `#tag`, `-#tag`, and logic; works out which index columns a query needs |
-| Ranking | `lib/search/search-rank.ts` | Word-vector distance |
-| Word-vector lookup | `precomputed-vectors.ts`, `loaded-precomputed-vectors.ts` | Sharded fastText common-crawl data, plus `global-vectors.lps` as a shortcut |
-| Index reader | `lib/orthagonal/read.ts` | Loads the column files you need, then loads full entries from shards on demand |
+| Query language | `packages/core/src/search/text.ts` | Words, `#tag`, `-#tag`, and logic; works out which index columns a query needs |
+| Ranking | `packages/core/src/search/search-rank.ts` | Distance between word vectors |
+| Search engine | `packages/core/src/search/search-engine.ts` | Turns a query into a ranked answer; shared by the page, the server and the worker |
+| Word-vector lookup | `packages/core/src/search/precomputed-vectors.ts`, `loaded-precomputed-vectors.ts` | Sharded fastText common-crawl data, plus `global-vectors.lps` as a shortcut |
+| Version 1 index reader | `packages/core/src/orthagonal/` | Re-exports the reader from the pipeline's `@andypalmer/orthagonal` package |
+| Version 2 index on the server | `packages/core/src/search/bookshelf-library.ts`, `server-library.ts` | Keeps index files in server memory, and reuses them until `manifest.json` changes. Falls back to version 1 while the data server has no version 2 index |
+| Version 2 index in the browser | `packages/core/src/worker/` | The service worker keeps index files in the browser and answers searches from them |
 
-### 3. Index management (the "orthagonal" store)
+### 3. Index management
+The index writer and the build run in the [find-sign-pipeline](https://github.com/andypalmer/find-sign-pipeline)
+repo (`packages/indexer`, `packages/orthagonal`), not here. The site only reads what they publish.
+
 | Component | Where | Notes |
 |---|---|---|
-| Index writer | `lib/orthagonal/write.ts`, `types.ts` | encoded-search-data → column files, shards and `vectors.lps` |
-| Build orchestration | `lib/orthagonal/build.ts` | Removes unpublished entries, applies overrides, rebuilds `global-vectors.lps` |
-| Build triggers | `admin/indexes/[provider]/build` (logged in), `automation/build-index/[provider]` (needs the automation key) | |
-| Validation | `admin/indexes/[provider]/validate` | Checks entries against the schema |
-| Progress streaming | `lib/progress/*` | Long-polling log viewer for builds |
+| Index writer | `find-sign-pipeline` `packages/indexer`, `packages/orthagonal` | Writes version 1 and version 2 indexes, side by side |
+| Build orchestration | `find-sign-pipeline` `packages/indexer/src/build.ts` | Leaves out unpublished entries, applies overrides, rebuilds `global-vectors.lps` |
+| Build triggers (admin) | `apps/admin/src/routes/indexes/[provider]/build`, `apps/admin/src/routes/automation/build-index/[provider]` | The second needs the automation key |
+| Validation (admin) | `apps/admin/src/routes/indexes/[provider]/validate` | Checks entries against the schema |
+| Progress streaming (admin) | `apps/admin/src/lib/progress/` | Long-polling log viewer for builds |
 
 ### 4. Content curation
 | Component | Where | Notes |
 |---|---|---|
-| Overrides | `lib/models/index-override.ts`, `admin/overrides/*`, `lib/admin/ui/*` | Per-entry manual corrections, merged in at build time. Stored at `overrides/<provider>:<id>.json` |
-| Publish flag | `published: false` in the data | Entry is skipped at build |
+| Overrides (admin) | `apps/admin/src/lib/models/index-override.ts`, `apps/admin/src/routes/overrides/` | Per-entry manual corrections, merged in at build time |
+| Publish flag | `published: false` in the data | Entry is left out of the index at build time; its id stays reserved |
 
 ### 5. Identity and access
 | Component | Where | Notes |
 |---|---|---|
-| Passkey (WebAuthn) login | `lib/passkey/*`, `admin/login/passkey`, `hooks.ts` | Signed session in a cookie |
-| Users and permissions | `lib/models/user.ts`, `admin/users/*` | Permissions are `everything`, `edit-index` and `edit-users`; each user is stored as `users/<name>.json` |
+| Passkey (WebAuthn) login (admin) | `apps/admin/src/lib/passkey/`, `apps/admin/src/hooks.server.ts` | Signed session in a cookie. The public site has no logins |
+| Users and permissions (admin) | `apps/admin/src/lib/models/user.ts`, `apps/admin/src/routes/users/` | Permissions are `everything`, `edit-index` and `edit-users` |
 
 ### 6. Audit and analytics
 | Component | Where | Notes |
 |---|---|---|
-| Audit log | `lib/models/audit-log.ts`, `admin/audit-log/*` (including a JSON feed) | One file per action. Needs the data server to list a directory, which nginx can't do, hence broken |
-| Analytics | `lib/models/analytics.ts`, `routes/analytics/*` | Per-minute counters written with a custom "math" write. Disabled: `recordAnalytics` and `readAnalyticsYear` start with an early `return` |
+| Audit log (admin) | `apps/admin/src/lib/models/audit-log.ts`, `apps/admin/src/routes/audit-log/` (with a JSON feed) | One file per action. The admin pages and feed have no login check yet |
+| Analytics (public site) | `apps/search/src/lib/models/analytics.ts`, `apps/search/src/routes/analytics/` | Disabled: `AnalyticsEnabled` is `false`, so recording and reading return early |
 
 ### 7. Outbound feeds and discoverability
 | Component | Where |
 |---|---|
-| Discovery feeds (JSON Feed, Atom, RSS) | `routes/feeds/*` |
-| Sitemap (every entry) | `routes/sitemap.xml` |
-| OpenSearch (browser search-bar integration) | `routes/opensearch.xml` |
+| Discovery feeds (JSON Feed, Atom, RSS) | `apps/search/src/routes/feeds/` |
+| Sitemap (every entry) | `apps/search/src/routes/sitemap.xml/` |
+| OpenSearch (browser search-bar integration) | `apps/search/src/routes/opensearch.xml/` |
 
 ### 8. Integrations
 | Component | Where | Notes |
 |---|---|---|
-| Discord bot | `routes/discord/*` | `/search`- and `/random`-style commands with paging buttons; `/discord/setup` registers the commands with Discord |
-| Tumblr/blog RSS (inbound) | `lib/data-io/rss.ts` | |
+| Discord bot | `apps/search/src/routes/discord/` | `/search` and `/random` commands with paging buttons. `setup/` registers the commands with Discord |
+| Tumblr and blog RSS (inbound) | `apps/search/src/lib/data-io/rss.ts` | |
 
 ### 9. Data store client
 | Component | Where | Notes |
 |---|---|---|
-| find-sign-data protocol | `lib/data-io/data-io.ts`, `auth.ts` | Every request carries a short-lived ed25519-signed `?license=`. Writes use `PUT`, `DELETE`, a JSON `POST {type:'bulk'}` and `POST {type:'math'}`; it also lists directories. nginx supports none of this, so everything under **3–6** that writes data or lists directories fails in production |
+| find-sign-data protocol | `packages/data-io/src/data-io.ts`, `packages/data-io/src/auth.ts` | Each request carries a short-lived signed `?license=`. Writes use `PUT`, `DELETE` and `POST`, and the client can list directories. Writing is switched off at the moment, and the public data server doesn't allow directory listing (nginx) |
 
-### 10. Pipeline outside this repo
+### 10. Outside this repo
 | Component | Status |
 |---|---|
 | Media encoder (→ `encodes`, thumbnails) | Not in the workspace |
-| `find-sign-vectors-builder` (fastText → sharded vectors) | Separate GitHub repo |
-| `pigeon-signbank` | In the workspace: Auslan Signbank spider → YAML → search-data |
-| find-sign-data server (the writable data server) | Not in the workspace; `serve.mjs` is a partial local stand-in |
+| Vector builder (fastText → sharded vectors) | Separate GitHub repo |
+| `pigeon-signbank` (Auslan Signbank spider → YAML → search data) | Sibling folder of this repo, not part of it |
+| Index writer and build | `find-sign-pipeline` repo |
+| find-sign-data server (the writable data server) | Not in the workspace. `serve.mjs` is a partial local stand-in, kept in the sibling folder |
 
-## Why there's so much index traffic
-- **No caching on the server.** `getSearchLibrary` re-fetches index files on every call; there's no in-memory cache (its own `TODO` says so). The check that would reuse global vectors is commented out in `search.ts` (`/*!globalVectors &&*/`).
-- **About 5 MB per search.** Every word search fetches `global-vectors.lps` (3.2 MB) plus `meta`, `words` and `tags` for all 11 indexes (about 1.9 MB). That includes server-rendered searches and Discord searches.
-- **Everything is fetched with `no-cache`.** `meta.json` and `global-vectors.lps` always revalidate, and shards use `no-store`.
-- **Other pages load every index too.** Random, sitemap, the homepage feed and Discord each load columns from all indexes per request; only the homepage has a small response cache.
+## Index traffic today
+- **The server caches the search index.** On the version 2 path, the server keeps the index files in memory and
+  checks `manifest.json` on each request. Repeat searches reuse the loaded library until the index changes.
+- **Until version 2 is published, the server falls back to version 1.** The version 1 path still fetches its
+  files on each search. The live data server has version 2 (checked at `v2/manifest.json`).
+- **The browser still asks for everything with `no-cache`.** `meta.json` and `global-vectors.lps` always revalidate,
+  and shards use `no-store`. Working out which files can be cached is open work.
+- **Each search's word vectors are about 3 MB.** `global-vectors.lps` is the largest single file a first visit needs.
+  Smaller options were measured, and we decided the saving didn't justify a new format (see `docs/word-vector-size.md`).
 
-## Security issues
-- `admin/audit-log` and its `feed.json` don't check for a login.
-- `admin/overrides` and `validate` check for a login but not for a permission.
-- The automation key in `.env` is the same value as in `example.env`, which is committed to the repo.
+## Open items
+Open work is tracked in the project's issue tracker, not in this file. Current open items cover: the admin
+audit-log and overrides login checks, the automation key in `example.env`, the data server publishing audit-log
+files, browser caching of index files, and the analytics decision.
 
-This is from reading the code and measuring file sizes; production traffic has not been profiled.
+This is from reading the code and measuring file sizes. Production traffic has not been profiled.
