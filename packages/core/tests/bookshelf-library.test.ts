@@ -78,3 +78,14 @@ describe('the bookshelf library, while the version 2 index is not published', ()
     expect(asked).toBe(false)
   })
 })
+
+describe('the bookshelf library, between page requests', () => {
+  it('gives the same sign objects again while the index has not changed, rather than copying every sign each time', async () => {
+    const server = await publishedServer()
+    const getLibrary = bookshelfGetSearchLibrary({ baseUrl: base, indexes: ['alpha', 'beta'], fetch: (url, init) => server.fetch(url, init) })
+    const first = await getLibrary(['alpha'], ['id'])
+    const second = await getLibrary(['alpha'], ['id'])
+
+    expect(second.alpha.entries).toBe(first.alpha.entries)
+  })
+})

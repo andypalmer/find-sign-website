@@ -34,6 +34,8 @@ function noVersion2Index (error: unknown): boolean {
 export function makeBookshelf (options: BookshelfOptions): Bookshelf {
   const kept = serverLibrary(options)
   const folder = options.baseUrl.replace(/\/+$/, '')
+  // the loaded indexes whose signs already have their address
+  const addressed = new WeakSet<object>()
 
   const getSearchLibrary: GetSearchLibrary = async (limitLibraries = false, columns = ['words', 'tags'], forceReload = false, globalVectors) => {
     const names = limitLibraries === false ? options.indexes : limitLibraries
@@ -47,7 +49,13 @@ export function makeBookshelf (options: BookshelfOptions): Bookshelf {
     return Object.fromEntries(names.map(name => {
       const index = everything[name]
       const address = `${folder}/${name}`
-      return [name, { ...index, url: address, entries: index.entries.map(entry => ({ ...entry, indexURL: address })) }]
+      // each loaded index gets its address once. The signs themselves are shared between calls, so a later change to
+      // them (such as the known vectors being attached) still shows, and a page request doesn't copy every sign
+      if (!addressed.has(index)) {
+        for (const entry of index.entries) entry.indexURL = address
+        addressed.add(index)
+      }
+      return [name, { ...index, url: address }]
     }))
   }
 
