@@ -1,3 +1,4 @@
+import type { GetSearchLibrary } from './bookshelf-library.ts'
 import { loadIndex } from '#lib/orthagonal/read.ts'
 import { lookup } from '#lib/search/loaded-precomputed-vectors.ts'
 import { answerSearch, type SearchLibrary, type SearchResponse } from '#lib/search/search-engine.ts'
@@ -20,9 +21,24 @@ export const indexByURL: { [url: string]: string } = Object.fromEntries(Object.e
 // what the engine answers with, and the library it ranks: defined with the engine, which the service worker uses too
 export type { SearchLibrary, SearchResponse, SearchResult } from '#lib/search/search-engine.ts'
 
+// the server's bookshelf (see bookshelf-library.ts), once the server has set one at start-up. The browser never sets one
+let theBookshelf: GetSearchLibrary | undefined
+
+/** the server sets its bookshelf once, at start-up; from then on every library call goes through it */
+export function useTheBookshelf (library: GetSearchLibrary): void {
+  theBookshelf = library
+}
+
 // getSearchLibrary loads a collection of search libraries, possibly limited to a specific set
-// of indexes (e.g. auslan-signbank) and a specific set of columns (words, tags, link, id, author, etc)
+// of indexes (e.g. auslan-signbank) and a specific set of columns (words, tags, link, id, author, etc).
+// Every caller comes through here: the bookshelf answers when the server has set one, and the version 1 files otherwise
 export async function getSearchLibrary (limitLibraries: string[] | false = false, columns: string[] = ['words', 'tags'], forceReload = false, globalVectors?: { [word: string]: WordVector }): Promise<SearchLibrary> {
+  if (theBookshelf) return theBookshelf(limitLibraries, columns, forceReload, globalVectors)
+  return getSearchLibraryFromVersion1(limitLibraries, columns, forceReload, globalVectors)
+}
+
+// the version 1 loader: the bookshelf hands its calls to this when the data server has no version 2 index
+export async function getSearchLibraryFromVersion1 (limitLibraries: string[] | false = false, columns: string[] = ['words', 'tags'], forceReload = false, globalVectors?: { [word: string]: WordVector }): Promise<SearchLibrary> {
   if (limitLibraries === false) limitLibraries = Object.keys(indexURLs)
 
   const collection = Object.fromEntries(await Promise.all(limitLibraries.map(async name => {
