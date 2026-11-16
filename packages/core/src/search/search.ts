@@ -1,4 +1,4 @@
-import type { GetSearchLibrary } from './bookshelf-library.ts'
+import type { Bookshelf } from './bookshelf-library.ts'
 import { loadIndex } from '#lib/orthagonal/read.ts'
 import { lookup } from '#lib/search/loaded-precomputed-vectors.ts'
 import { answerSearch, type SearchLibrary, type SearchResponse } from '#lib/search/search-engine.ts'
@@ -22,18 +22,18 @@ export const indexByURL: { [url: string]: string } = Object.fromEntries(Object.e
 export type { SearchLibrary, SearchResponse, SearchResult } from '#lib/search/search-engine.ts'
 
 // the server's bookshelf (see bookshelf-library.ts), once the server has set one at start-up. The browser never sets one
-let theBookshelf: GetSearchLibrary | undefined
+let theBookshelf: Bookshelf | undefined
 
-/** the server sets its bookshelf once, at start-up; from then on every library call goes through it */
-export function useTheBookshelf (library: GetSearchLibrary): void {
-  theBookshelf = library
+/** the server sets its bookshelf once, at start-up; from then on every library call and search goes through it */
+export function useTheBookshelf (bookshelf: Bookshelf): void {
+  theBookshelf = bookshelf
 }
 
 // getSearchLibrary loads a collection of search libraries, possibly limited to a specific set
 // of indexes (e.g. auslan-signbank) and a specific set of columns (words, tags, link, id, author, etc).
 // Every caller comes through here: the bookshelf answers when the server has set one, and the version 1 files otherwise
 export async function getSearchLibrary (limitLibraries: string[] | false = false, columns: string[] = ['words', 'tags'], forceReload = false, globalVectors?: { [word: string]: WordVector }): Promise<SearchLibrary> {
-  if (theBookshelf) return theBookshelf(limitLibraries, columns, forceReload, globalVectors)
+  if (theBookshelf) return theBookshelf.getSearchLibrary(limitLibraries, columns, forceReload, globalVectors)
   return getSearchLibraryFromVersion1(limitLibraries, columns, forceReload, globalVectors)
 }
 
@@ -50,12 +50,17 @@ export async function getSearchLibraryFromVersion1 (limitLibraries: string[] | f
   return collection
 }
 
-// the page's search: the search engine, run on the v1 index files and the site's settings
+// the version 1 known vectors: a file with a word-vector pairing for every word that exists in the search index.
+// The bookshelf hands its calls here when the data server has no version 2 index
+export function knownVectorsFromVersion1 () {
+  // !!! should this have a cache expiry mechanism?
+  return openGlobalVectors(SEARCH_DATA + fn`${IndexName}/global-vectors.lps`)
+}
+
+// the page's search: the search engine, run on the server's bookshelf when the server has one, and the v1 index files otherwise
 export async function search (query: string, start: number, length: number, forceReload = false): Promise<SearchResponse> {
   return await answerSearch(query, start, length, {
-    // this file contains a word-vector pairing for every word that exists in the search index
-    // !!! should this have a cache expiry mechanism?
-    knownVectors: () => openGlobalVectors(SEARCH_DATA + fn`${IndexName}/global-vectors.lps`),
+    knownVectors: () => theBookshelf ? theBookshelf.knownVectors() : knownVectorsFromVersion1(),
     lookupVector: lookup,
     loadLibrary: (columns, knownVectors, reload) => getSearchLibrary(false, columns, reload, knownVectors),
     indexNameOf: entry => indexByURL[entry.indexURL]

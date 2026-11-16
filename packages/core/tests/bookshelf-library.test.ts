@@ -2,7 +2,7 @@ import type { SearchLibrary } from '../src/search/search-engine.ts'
 import { describe, expect, it } from 'vitest'
 import { FakeDataServer } from '@find-sign/test-helpers/fake-data-server.ts'
 import { planPublishOrder, writeVersion2Index, writeVersion2Vectors, type EncodedSearchData } from '@andypalmer/orthagonal'
-import { bookshelfGetSearchLibrary } from '../src/search/bookshelf-library.ts'
+import { bookshelfGetSearchLibrary, makeBookshelf } from '../src/search/bookshelf-library.ts'
 
 const base = 'https://data.example/index'
 const lookupVector = async (word: string) => ({ cat: [1, 0], dog: [0, 1], car: [0.5, 0.5] } as Record<string, number[]>)[word]
@@ -76,5 +76,15 @@ describe('the bookshelf library, while the version 2 index is not published', ()
 
     await expect(getLibrary(['alpha'], ['id'], false)).rejects.toThrow()
     expect(asked).toBe(false)
+  })
+})
+
+describe('the bookshelf\'s known vectors, while the version 2 index is not published', () => {
+  it('answers with the version 1 known vectors when the data server has no version 2 manifest', async () => {
+    const server = new FakeDataServer()
+    const fromVersion1 = { cat: [1, 0] }
+    const { knownVectors } = makeBookshelf({ baseUrl: base, indexes: ['alpha', 'beta'], fetch: (url, init) => server.fetch(url, init), fallbackKnownVectors: async () => fromVersion1 as never })
+
+    expect(await knownVectors()).toBe(fromVersion1)
   })
 })
