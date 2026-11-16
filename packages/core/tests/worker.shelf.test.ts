@@ -4,6 +4,7 @@ import { FakeIndexedDb } from '@find-sign/test-helpers/fake-indexeddb.ts'
 import { FakeShelf } from '@find-sign/test-helpers/fake-shelf.ts'
 import { FileKeeper, type IRememberFilesByName } from '../src/worker/file-keeper.ts'
 import { IndexedDbShelf, type OpensDatabases } from '../src/worker/indexeddb-shelf.ts'
+import { MemoryShelf } from '../src/worker/memory-shelf.ts'
 
 const bytesOf = (text: string) => new TextEncoder().encode(text)
 const textOf = (bytes: Uint8Array | undefined) => bytes === undefined ? undefined : new TextDecoder().decode(bytes)
@@ -11,7 +12,8 @@ const textOf = (bytes: Uint8Array | undefined) => bytes === undefined ? undefine
 // Every shelf makes the same promises, so the same tests run on each; that also keeps the fake honest.
 describe.each<[string, () => IRememberFilesByName]>([
   ['the pretend shelf', () => new FakeShelf()],
-  ['the IndexedDB shelf', () => new IndexedDbShelf(new FakeIndexedDb(), 'find-sign-index')]
+  ['the IndexedDB shelf', () => new IndexedDbShelf(new FakeIndexedDb(), 'find-sign-index')],
+  ['the memory shelf', () => new MemoryShelf()]
 ])('%s', (_, newShelf) => {
   it('gives back the bytes it was given, under the name it was given them', async () => {
     const shelf = newShelf()
@@ -158,5 +160,16 @@ describe('the file keeper on the IndexedDB shelf', () => {
 
     expect(textOf(afterRestart)).toBe('the shard')
     expect(server.requests).toHaveLength(1)
+  })
+})
+
+describe('the memory shelf, which the server keeps for as long as it runs', () => {
+  it('keeps its own copy, so changing the bytes after giving them does not change what it holds', async () => {
+    const shelf = new MemoryShelf()
+    const bytes = bytesOf('first')
+    await shelf.remember('a', bytes)
+    bytes[0] = 'X'.charCodeAt(0)
+
+    expect(textOf(await shelf.recall('a'))).toBe('first')
   })
 })
