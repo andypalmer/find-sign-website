@@ -14,6 +14,18 @@ export type RankedLibrary = {
   entries: LoadedOrthagonalEntry[]
 }
 
+// how spread out a sign's own words are. It depends only on the sign, not on the query, so it is worked out once for
+// each loaded sign and kept with it, rather than on every search
+const spreadOfSign = new WeakMap<LoadedOrthagonalEntry, number>()
+function spreadOf (entry: LoadedOrthagonalEntry, vectors: Float32Array[]): number {
+  let spread = spreadOfSign.get(entry)
+  if (spread === undefined) {
+    spread = Math.max(...vectorDiversity(...vectors))
+    spreadOfSign.set(entry, spread)
+  }
+  return spread
+}
+
 /**
  * Ranks every sign in the library that matches, best first. Signs that rank equally go in the order the library
  * lists its indexes in (the first index listed is the one we trust most), then in id order within an index, so the
@@ -27,7 +39,7 @@ export default function rank (library: SearchLibrary, filterFn: RankingFilterFun
       if (typeof rank === 'number' && rank < Infinity) {
         const rankedEntry = Object.create(entry)
         if (entry.vectors) {
-          const diversity = Math.max(...vectorDiversity(...entry.vectors.filter(x => x instanceof Float32Array)))
+          const diversity = spreadOf(entry, entry.vectors.filter(x => x instanceof Float32Array))
           rankedEntry.rank = rank + (diversity * 0.1)
         } else {
           rankedEntry.rank = rank
