@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.2.0](https://github.com/andypalmer/find-sign-website/compare/v1.1.0...v1.2.0) (2026-11-18)
+
+
+### Features
+
+* **deploy:** cache the version 2 index files for a year and always check manifest.json ([20e6a06](https://github.com/andypalmer/find-sign-website/commit/20e6a061b5de2bc301547e897d56ec3e3c5d7f33))
+* **search:** answer server searches from the bookshelf without the version 1 vector file ([2083952](https://github.com/andypalmer/find-sign-website/commit/208395299a0b2f658bccd204ed541c2aa36244a0))
+* **search:** ask the browser to look for a new worker when the one we have is out of date ([57ba0ad](https://github.com/andypalmer/find-sign-website/commit/57ba0ad749d329016b434b9a82466765dd2bfc03))
+* **search:** fall back to the version 1 files while the version 2 index is not published ([e5d324d](https://github.com/andypalmer/find-sign-website/commit/e5d324dde4ba2790c82efd63f7e9f51195926cce))
+* **search:** fetch index files from the data server's internal address on the server ([30dcf56](https://github.com/andypalmer/find-sign-website/commit/30dcf564b910885b9deb20b60284176ff10f4376))
+* **search:** give version 2 signs the index address version 1 signs have ([20d3861](https://github.com/andypalmer/find-sign-website/commit/20d3861ce99678d4f1b8045065b3022ae4967aa9))
+* **search:** look up word vectors through the internal origin on the server ([c3bfdc8](https://github.com/andypalmer/find-sign-website/commit/c3bfdc84c1a5c1c53eff8511d5fadbf4ee68fffa))
+* **search:** send server callers of getSearchLibrary through the bookshelf ([7639dfe](https://github.com/andypalmer/find-sign-website/commit/7639dfee73098cad749a3d5b3fe91614651cdebf))
+* **server:** answer server-side searches from the version 2 index ([420c327](https://github.com/andypalmer/find-sign-website/commit/420c327a388f0bb67ede3b59b259deae6282299f))
+* **server:** keep index files in server memory between requests ([88347e6](https://github.com/andypalmer/find-sign-website/commit/88347e69aba9d7440813cfcd26ac3d04f1eaa54a))
+* **worker:** keep the worker's stored files under a size limit ([fa0b931](https://github.com/andypalmer/find-sign-website/commit/fa0b9313c705dfada01aba02f201255a5858bece))
+
+
+### Bug Fixes
+
+* **search:** find the new worker after a release replaces the one the page was using ([fb9b95b](https://github.com/andypalmer/find-sign-website/commit/fb9b95ba059d26c85e9685f52707f5f712d5f115))
+* **worker:** let a future change to the kept-files database go ahead ([fb8e6e8](https://github.com/andypalmer/find-sign-website/commit/fb8e6e8a11cf2eacf89f495194ec3585992ac3a5))
+
+
+### Performance Improvements
+
+* **search:** reuse the sign list between page requests instead of copying it each time ([a6f8937](https://github.com/andypalmer/find-sign-website/commit/a6f8937114c95b7c20dd42903ad3eff394b5e4df))
+* **search:** work out each sign's word diversity once when the index loads ([db5027c](https://github.com/andypalmer/find-sign-website/commit/db5027c8cb89429b5934076691c8d8a241575f3f))
+
 ## [1.1.0](https://github.com/andypalmer/find-sign-website/compare/v1.0.1...v1.1.0) (2026-11-15)
 
 
