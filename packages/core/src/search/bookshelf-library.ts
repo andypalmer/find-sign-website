@@ -24,6 +24,8 @@ export type BookshelfOptions = ServerLibraryOptions & {
   fallback?: GetSearchLibrary,
   /** the version 1 search, used while there is no version 2 index */
   fallbackSearch?: SearchVersion1,
+  /** looks up a word the index does not use, in the whole word vector library. Default: the one at VECTOR_INDEX */
+  lookupVector?: (word: string) => Promise<WordVector | undefined>,
 }
 
 /** a 404 for manifest.json: the data server has no version 2 index yet */
@@ -68,7 +70,7 @@ export function makeBookshelf (options: BookshelfOptions): Bookshelf {
       if (options.fallbackSearch && noVersion2Index(error)) return options.fallbackSearch(query, start, length, forceReload)
       throw error
     }
-    return answerSearch(query, start, length, kept.asSearchSeamsFor(manifestBytes, lookup), forceReload)
+    return answerSearch(query, start, length, kept.asSearchSeamsFor(manifestBytes, options.lookupVector ?? lookup), forceReload)
   }
 
   return { getSearchLibrary, search }
